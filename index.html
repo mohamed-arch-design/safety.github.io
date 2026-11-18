@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Manage contractors and collect job safety documents for Tricel."
+    />
+    <meta name="theme-color" content="#f6f7f9" />
+    <title>Tricel — Contractor safety management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
+      <symbol id="i-hardhat" viewBox="0 0 24 24"><path d="M3 16.5h18M5 16.5v2.2h14v-2.2M6.5 16.5v-2.2a5.5 5.5 0 0 1 11 0v2.2M12 5v2.8M4.7 12.7l-2-1.1M19.3 12.7l2-1.1"/></symbol>
+      <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7.5" width="18" height="13" rx="2"/><path d="M8 7.5V5.8a1.8 1.8 0 0 1 1.8-1.8h4.4A1.8 1.8 0 0 1 16 5.8v1.7M3 12.5c5.7 2.8 12.3 2.8 18 0M10 13.5h4"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M13.5 3.5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10z"/><path d="M13 3.5V10h7M8 14h8M8 17.5h8"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1a1.7 1.7 0 0 1-2.4 2.4l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a1.7 1.7 0 0 1-3.4 0v-.2A1.7 1.7 0 0 0 7.8 17l-.1.1a1.7 1.7 0 0 1-2.4-2.4l.1-.1a1.7 1.7 0 0 0-1.2-2.9H4a1.7 1.7 0 0 1 0-3.4h.2A1.7 1.7 0 0 0 5.4 5.8l-.1-.1a1.7 1.7 0 0 1 2.4-2.4l.1.1a1.7 1.7 0 0 0 2.9-1.2V2a1.7 1.7 0 0 1 3.4 0v.2A1.7 1.7 0 0 0 17 3.4l.1-.1a1.7 1.7 0 0 1 2.4 2.4l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a1.7 1.7 0 0 1 0 3.4h-.2a1.7 1.7 0 0 0-1.2 2.9z"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+      <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></symbol>
+      <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/></symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m18 6-12 12M6 6l12 12"/></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    </svg>
+
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="#" aria-label="Tricel home">
+          <span class="brand-mark"><svg class="icon"><use href="#i-hardhat"/></svg></span>
+          <span class="brand-name">TRICEL<span class="brand-period">.</span></span>
+        </a>
+
+        <div class="workspace-switcher">
+          <span class="workspace-avatar">T</span>
+          <span class="workspace-info"><strong>Tricel</strong><small>Workspace</small></span>
+          <svg class="icon switcher-chevron"><use href="#i-chevron"/></svg>
+        </div>
+
+        <div class="nav-label">WORKSPACE</div>
+        <nav class="primary-nav" aria-label="Main navigation">
+          <a class="nav-link active" href="#overview" aria-current="page"><svg class="icon"><use href="#i-grid"/></svg><span>Overview</span></a>
+          <a class="nav-link" href="#contractors"><svg class="icon"><use href="#i-hardhat"/></svg><span>Contractors</span><span class="nav-count" id="nav-contractor-count">0</span></a>
+          <a class="nav-link" href="#projects"><svg class="icon"><use href="#i-briefcase"/></svg><span>Projects</span></a>
+          <a class="nav-link" href="#documents"><svg class="icon"><use href="#i-file"/></svg><span>Documents</span><span class="nav-dot"></span></a>
+          <a class="nav-link" href="#permit-submission"><svg class="icon"><use href="#i-check"/></svg><span>Permits</span></a>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="help-card">
+            <div class="help-orbit orbit-one"></div>
+            <div class="help-orbit orbit-two"></div>
+            <span class="help-icon"><svg class="icon"><use href="#i-hardhat"/></svg></span>
+            <strong>Need a hand?</strong>
+            <p>Our team is here to help you keep things moving.</p>
+            <a href="mailto:support@tricel.example">Visit help center <svg class="icon"><use href="#i-arrow-right"/></svg></a>
+          </div>
+          <a class="nav-link settings-link" href="#settings"><svg class="icon"><use href="#i-settings"/></svg><span>Settings</span></a>
+          <div class="profile">
+            <div class="avatar avatar-user">T</div>
+            <span class="profile-info"><strong>Tricel</strong><small>Project manager</small></span>
+            <button class="icon-button profile-menu" type="button" aria-label="Open profile menu"><svg class="icon"><use href="#i-more"/></svg></button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content" id="overview">
+        <header class="topbar">
+          <button class="icon-button mobile-menu" id="mobile-menu" type="button" aria-label="Open navigation"><svg class="icon"><use href="#i-menu"/></svg></button>
+          <div class="breadcrumb"><span>Workspace</span><span class="breadcrumb-slash">/</span><strong>Overview</strong></div>
+          <div class="topbar-actions">
+            <label class="search-box">
+              <svg class="icon"><use href="#i-search"/></svg>
+              <input id="global-search" type="search" placeholder="Search anything..." autocomplete="off" aria-label="Search contractors" />
+              <kbd>⌘ K</kbd>
+            </label>
+            <span class="topbar-divider"></span>
+            <button class="icon-button notification-button" id="notification-button" type="button" aria-label="Notifications">
+              <svg class="icon"><use href="#i-bell"/></svg><span class="notification-dot"></span>
+            </button>
+            <div class="avatar avatar-user topbar-avatar">T</div>
+          </div>
+        </header>
+
+        <div class="page-content">
+          <section class="welcome-row">
+            <div>
+              <div class="eyebrow"><span class="live-dot"></span> <span id="current-date"></span></div>
+              <h1>Welcome, Tricel <span class="wave">✳</span></h1>
+              <p class="page-subtitle">Here’s what’s happening across your workspace.</p>
+            </div>
+            <button class="button button-primary" id="add-contractor" type="button"><svg class="icon"><use href="#i-plus"/></svg>Add contractor</button>
+          </section>
+
+          <section class="metrics-grid" aria-label="Workspace summary">
+            <article class="metric-card">
+              <div class="metric-top"><span class="metric-label">Registered contractors</span><span class="metric-icon metric-icon-blue"><svg class="icon"><use href="#i-hardhat"/></svg></span></div>
+              <div class="metric-value-row"><strong class="metric-value" id="contractor-total">0</strong></div>
+              <div class="metric-foot"><span>In this workspace</span></div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-top"><span class="metric-label">Jobs / projects</span><span class="metric-icon metric-icon-violet"><svg class="icon"><use href="#i-briefcase"/></svg></span></div>
+              <div class="metric-value-row"><strong class="metric-value" id="project-total">0</strong></div>
+              <div class="metric-foot"><span>Linked to contractors</span></div>
+            </article>
+            <button class="metric-card metric-card-action" id="pending-documents-card" type="button" aria-haspopup="dialog" aria-controls="pending-documents-dialog">
+              <div class="metric-top"><span class="metric-label">Pending document requirements</span><span class="metric-icon metric-icon-amber"><svg class="icon"><use href="#i-file"/></svg></span></div>
+              <div class="metric-value-row"><strong class="metric-value" id="pending-documents">0</strong><span class="metric-alert"><span></span>Needs attention</span></div>
+              <div class="metric-foot"><span>Insurance · safety · RAMS · job certs</span></div>
+            </button>
+            <article class="metric-card">
+              <div class="metric-top"><span class="metric-label">Expired / expiring</span><span class="metric-icon metric-icon-green"><svg class="icon"><use href="#i-calendar"/></svg></span></div>
+              <div class="metric-value-row"><strong class="metric-value" id="expiry-alerts">0</strong></div>
+              <div class="metric-foot"><span>Expired or due within 30 days</span></div>
+            </article>
+          </section>
+
+          <section class="panel site-overview" aria-labelledby="site-overview-title">
+            <div class="panel-heading">
+              <div><div class="section-kicker">CONTRACTOR LOCATIONS</div><h2 id="site-overview-title">Contractors by site</h2></div>
+            </div>
+            <div class="site-count-grid">
+              <article class="site-count-card"><span>Tricel Weston</span><strong id="site-count-weston">0</strong><small>contractors</small></article>
+              <article class="site-count-card"><span>Tricel Killarney</span><strong id="site-count-killarney">0</strong><small>contractors</small></article>
+              <article class="site-count-card"><span>Tricel Gloucester</span><strong id="site-count-gloucester">0</strong><small>contractors</small></article>
+            </div>
+            <p class="site-unassigned-note" id="site-unassigned-note" hidden></p>
+          </section>
+
+          <section class="dashboard-grid">
+            <article class="panel projects-panel" id="projects">
+              <div class="panel-heading">
+                <div><div class="section-kicker">CONTRACTOR WORKSITES</div><h2>Jobs &amp; projects</h2></div>
+                <a class="text-button" href="#contractors">View contractors <svg class="icon"><use href="#i-arrow-right"/></svg></a>
+              </div>
+              <div class="project-list" id="project-list"><div class="project-empty">Jobs will appear when you add contractors.</div></div>
+              <div class="project-summary">
+                <span class="summary-pulse"></span>
+                <span id="project-summary-text">Jobs are based on contractor project records.</span>
+              </div>
+            </article>
+
+            <article class="panel activity-panel">
+              <div class="panel-heading">
+                <div><div class="section-kicker">SAFETY COMPLIANCE</div><h2>Latest submissions</h2></div>
+                <a class="text-button" href="#documents">View documents <svg class="icon"><use href="#i-arrow-right"/></svg></a>
+              </div>
+              <div class="activity-list" id="activity-list"><div class="activity-empty">Submitted documents will appear here.</div></div>
+              <a class="activity-footer" href="#documents">Manage submissions <svg class="icon"><use href="#i-arrow-right"/></svg></a>
+            </article>
+            <article class="panel permits-panel" id="permits">
+              <div class="panel-heading">
+                <div><div class="section-kicker">CURRENT SITE REQUIREMENTS</div><h2>Live permits <span class="heading-count" id="permit-total">0</span></h2></div>
+                <a class="text-button" href="#permit-submission">Issue permit <svg class="icon"><use href="#i-arrow-right"/></svg></a>
+              </div>
+              <p class="permits-note">Active permits are marked Live. Upcoming permits are shown until their end time.</p>
+              <div class="permit-list" id="permit-list" aria-live="polite"><div class="permit-empty">Current permit requirements will appear here.</div></div>
+            </article>
+          </section>
+
+          <section class="panel contractors-panel" id="contractors">
+            <div class="panel-heading contractors-heading">
+              <div><div class="section-kicker">YOUR PEOPLE</div><h2>Contractors <span class="heading-count" id="contractor-heading-count">24</span></h2></div>
+              <div class="table-actions">
+                <label class="table-search"><svg class="icon"><use href="#i-search"/></svg><input id="contractor-search" type="search" placeholder="Search contractors..." aria-label="Search contractors" /></label>
+                <label class="filter-select"><span class="sr-only">Filter by status</span><select id="status-filter"><option value="all">All status</option><option value="Complete">Complete</option><option value="Pending">Pending</option></select><svg class="icon"><use href="#i-chevron"/></svg></label>
+                <button class="button button-secondary export-button" id="export-button" type="button"><svg class="icon"><use href="#i-download"/></svg><span>Export</span></button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>CONTRACTOR</th><th>SITE</th><th>TRADE</th><th>PROJECT / JOB</th><th>COMPLIANCE</th><th>DOCUMENTS</th><th>ADDED</th><th><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody id="contractor-rows"></tbody>
+              </table>
+              <div class="empty-state" id="empty-state" hidden><span class="empty-icon"><svg class="icon"><use href="#i-search"/></svg></span><strong>No contractors found</strong><span>Try adjusting your search or filters.</span></div>
+            </div>
+            <div class="table-footer"><span>Showing <strong id="showing-count">0</strong> of <strong id="total-count">0</strong> contractors</span><span class="updated-label"><span></span> Connected to Tricel workspace</span></div>
+          </section>
+
+          <section class="panel approved-contractors-panel" id="approved-contractors" aria-labelledby="approved-contractors-title">
+            <div class="panel-heading">
+              <div><div class="section-kicker">TRICEL REVIEW</div><h2 id="approved-contractors-title">Approved contractors <span class="heading-count" id="approved-contractor-count">0</span></h2></div>
+              <label class="filter-select approved-site-filter"><span class="sr-only">Filter approved contractors by site</span><select id="approved-site-filter"><option value="all">Tricel Group (All)</option><option value="Tricel Weston">TW — Tricel Weston</option><option value="Tricel Killarney">TK — Tricel Killarney</option><option value="Tricel Gloucester">TG — Tricel Gloucester</option></select><svg class="icon"><use href="#i-chevron"/></svg></label>
+            </div>
+            <div class="approved-contractor-list" id="approved-contractor-list" aria-live="polite"><div class="profile-empty">No contractors have been approved yet.</div></div>
+          </section>
+
+          <section class="panel permit-submission-panel" id="permit-submission">
+            <div class="panel-heading documents-heading">
+            <div><div class="section-kicker">PERMIT CONTROL</div><h2>Permits</h2></div>
+            </div>
+            <p class="documents-note">Submit permits separately from contractor safety documents.</p>
+            <form class="document-form permit-form" id="permit-form">
+              <label class="form-field"><span>Contractor name</span><input id="permit-contractor-name" name="contractorName" type="text" list="contractor-suggestions" maxlength="80" placeholder="Type contractor name" autocomplete="off" required /></label>
+              <label class="form-field"><span>Area / location</span><input name="areaLocation" type="text" maxlength="120" placeholder="e.g. North plant, roof area" required /></label>
+              <fieldset class="permit-requirements">
+                <legend>Permit type — select at least one</legend>
+                <p class="permit-time-note">Add a start and end date/time for every selected permit. Times use your local time zone.</p>
+                <div class="permit-options">
+                  <label><input name="permitTypes" type="checkbox" value="Hot work permit" data-permit-index="0" /><span>Hot work permit</span></label>
+                  <label><input name="permitTypes" type="checkbox" value="Confined space permit" data-permit-index="1" /><span>Confined space permit</span></label>
+                  <label><input name="permitTypes" type="checkbox" value="Work at height permit" data-permit-index="2" /><span>Work at height permit</span></label>
+                  <label><input name="permitTypes" type="checkbox" value="Other" data-permit-index="3" /><span>Other</span></label>
+                </div>
+                <div class="permit-schedule-list" id="permit-schedule-list"></div>
+                <label class="form-field permit-other-field" id="permit-other-field" hidden><span>Other permit details</span><input name="permitOther" type="text" maxlength="400" placeholder="Describe the permit required" /></label>
+              </fieldset>
+              <label class="form-field permit-document-upload"><span>Permit document (optional; PDF, JPG, or PNG, max 10 MB)</span><input name="permitDocument" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" /></label>
+              <button class="button button-primary" id="submit-permit" type="submit"><svg class="icon"><use href="#i-check"/></svg>Submit permit</button>
+            </form>
+          </section>
+
+          <section class="panel documents-panel" id="documents">
+            <div class="panel-heading documents-heading">
+              <div><div class="section-kicker">SAFETY COMPLIANCE</div><h2>Document submissions <span class="heading-count" id="document-total">0</span></h2></div>
+            </div>
+            <p class="documents-note">Insurance, safety statement, and RAMS are required. Add each crew member, then enter and upload one or more certifications for that crew.</p>
+            <form class="document-form" id="document-form">
+              <label class="form-field"><span>Contractor name</span><input id="document-contractor-name" name="contractorName" type="text" list="contractor-suggestions" maxlength="80" placeholder="Type contractor name" autocomplete="off" required /><datalist id="contractor-suggestions"></datalist></label>
+              <label class="form-field"><span>Area / location</span><input name="areaLocation" type="text" maxlength="120" placeholder="e.g. North plant, roof area" required /></label>
+              <fieldset class="project-owner-fields">
+                <legend>Project owner</legend>
+                <label class="form-field"><span>Name</span><input name="projectOwnerName" type="text" maxlength="80" placeholder="Project owner name" required /></label>
+                <label class="form-field"><span>Contact phone number</span><input name="projectOwnerPhone" type="tel" maxlength="30" placeholder="e.g. +353 1 234 5678" autocomplete="tel" required /></label>
+                <label class="form-field"><span>Email address</span><input name="projectOwnerEmail" type="email" maxlength="120" placeholder="name@example.com" autocomplete="email" required /></label>
+              </fieldset>
+              <div class="upload-requirements">
+                <fieldset class="document-upload-group">
+                  <legend>Insurance — required</legend>
+                  <label class="form-field"><span>Upload file (PDF, JPG, PNG; max 10 MB)</span><input name="insurance" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+                  <label class="form-field"><span>Insurance expiry date</span><input name="insuranceExpiryDate" type="date" required /></label>
+                </fieldset>
+                <fieldset class="document-upload-group">
+                  <legend>Company safety statement — required</legend>
+                  <label class="form-field"><span>Upload file (PDF, JPG, PNG; max 10 MB)</span><input name="safetyStatement" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+                  <label class="form-field"><span>Safety statement expiry date</span><input name="safetyStatementExpiryDate" type="date" required /></label>
+                </fieldset>
+                <fieldset class="document-upload-group">
+                  <legend>RAMS — required</legend>
+                  <label class="form-field"><span>Upload file (PDF, JPG, PNG; max 10 MB)</span><input name="rams" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+                  <label class="form-field"><span>RAMS expiry date</span><input name="ramsExpiryDate" type="date" required /></label>
+                </fieldset>
+              </div>
+              <section class="crew-requirements">
+                <div class="crew-heading"><div><strong>Crew members &amp; certifications</strong><span>Every crew needs at least one named certification with an expiry date.</span></div><button class="button button-secondary" id="add-crew" type="button"><svg class="icon"><use href="#i-plus"/></svg>Add crew</button></div>
+                <div id="crew-list">
+                  <fieldset class="crew-entry" data-crew-index="0">
+                    <legend>Crew 1</legend>
+                    <label class="form-field"><span>Crew name</span><input name="crewName_0" type="text" maxlength="80" placeholder="Type crew member name" required /></label>
+                    <div class="crew-cert-list" data-crew-index="0">
+                      <fieldset class="certificate-entry" data-certificate-index="0">
+                        <legend>Certification 1</legend>
+                        <input type="hidden" name="certificateCrew_0" value="0" />
+                        <label class="form-field"><span>Certification name</span><input name="certificateName_0" type="text" maxlength="120" placeholder="e.g. Working at height" required /></label>
+                        <label class="form-field"><span>Expiry date</span><input name="certificateExpiryDate_0" type="date" required /></label>
+                        <label class="form-field"><span>Upload file (PDF, JPG, PNG; max 10 MB)</span><input name="certificate_0" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+                      </fieldset>
+                    </div>
+                    <button class="button button-secondary add-crew-certificate" type="button" data-add-crew-certificate="0"><svg class="icon"><use href="#i-plus"/></svg>Add certification for this crew</button>
+                  </fieldset>
+                </div>
+                <p class="certificate-limit">Up to 10 crew members and 10 certifications can be added per submission.</p>
+              </section>
+              <button class="button button-primary" id="submit-document" type="submit"><svg class="icon"><use href="#i-plus"/></svg>Submit document</button>
+            </form>
+            <div class="document-list" id="document-list" aria-live="polite"><div class="document-empty">Loading submissions…</div></div>
+          </section>
+
+          <footer class="page-footer"><span>© 2026 Tricel</span><span><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="mailto:support@tricel.example">Help & support</a></span></footer>
+        </div>
+      </main>
+    </div>
+
+    <div class="sidebar-scrim" id="sidebar-scrim"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog class="contractor-dialog" id="contractor-dialog" aria-labelledby="dialog-title">
+      <form id="contractor-form">
+        <div class="dialog-header"><div><div class="section-kicker">GROW YOUR TEAM</div><h2 id="dialog-title">Add a contractor</h2><p>Invite a new contractor to your workspace.</p></div><button class="icon-button dialog-close" type="button" id="dialog-close" aria-label="Close dialog"><svg class="icon"><use href="#i-close"/></svg></button></div>
+        <label class="form-field"><span>Full name</span><input name="name" type="text" placeholder="e.g. Alex Morgan" required maxlength="80" /></label>
+        <label class="form-field"><span>Email address</span><input name="email" type="email" placeholder="alex@company.com" required maxlength="120" /></label>
+        <div class="form-row">
+          <label class="form-field"><span>Trade</span><select name="trade" required><option value="" disabled selected>Select trade</option><option>General contractor</option><option>Electrical</option><option>Plumbing</option><option>Carpentry</option><option>HVAC</option><option>Painting</option><option>Roofing</option><option>Concrete</option><option>Other</option></select></label>
+          <label class="form-field"><span>Project / job</span><input name="project" type="text" placeholder="e.g. North plant maintenance" required maxlength="120" /></label>
+        </div>
+        <label class="form-field"><span>Site location</span><select name="site" required><option value="" disabled selected>Select a site</option><option>Tricel Weston</option><option>Tricel Killarney</option><option>Tricel Gloucester</option></select></label>
+        <div class="dialog-actions"><button class="button button-secondary" id="cancel-dialog" type="button">Cancel</button><button class="button button-primary" type="submit"><svg class="icon"><use href="#i-plus"/></svg>Add contractor</button></div>
+      </form>
+    </dialog>
+    <dialog class="contractor-details-dialog" id="contractor-details-dialog" aria-labelledby="contractor-profile-title">
+      <div class="contractor-profile">
+        <div class="dialog-header">
+          <div><div class="section-kicker">CONTRACTOR PROFILE</div><h2 id="contractor-profile-title"></h2><p id="contractor-profile-summary"></p></div>
+          <button class="icon-button dialog-close" type="button" id="contractor-details-close" aria-label="Close contractor profile"><svg class="icon"><use href="#i-close"/></svg></button>
+        </div>
+        <div id="contractor-profile-content"></div>
+      </div>
+    </dialog>
+    <dialog class="pending-documents-dialog" id="pending-documents-dialog" aria-labelledby="pending-documents-title">
+      <div class="pending-documents-content">
+        <div class="dialog-header">
+          <div><div class="section-kicker">NEEDS ATTENTION</div><h2 id="pending-documents-title">Pending document requirements</h2><p>Contractors and the documents they still need to provide or renew.</p></div>
+          <button class="icon-button dialog-close" type="button" id="pending-documents-close" aria-label="Close pending documents"><svg class="icon"><use href="#i-close"/></svg></button>
+        </div>
+        <div class="pending-contractor-list" id="pending-contractor-list" aria-live="polite"></div>
+      </div>
+    </dialog>
+  </body>
+</html>
