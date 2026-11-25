@@ -464,7 +464,7 @@ function renderPurchasingReview() {
   form.querySelector('[name="comments"]').value = review?.comments || "";
   form.querySelector('[type="submit"]').disabled = !contractorId;
   document.querySelector("#purchasing-review-updated").textContent = review?.updatedAt
-    ? `Last saved ${new Date(review.updatedAt).toLocaleDateString()}${review.notificationSentAt ? " · Finance notified" : ""}`
+    ? `Last saved ${new Date(review.updatedAt).toLocaleDateString()}`
     : "";
   renderPurchasingApprovalFields();
 }
@@ -507,11 +507,11 @@ function renderFinanceWorkflowFields() {
     ? "Required: explain why the insurance was not approved"
     : "Add finance review comments";
   form.querySelector("#finance-comments-label").textContent = isRejected
-    ? "Reason for rejection (sent to Project Owner)"
+    ? "Reason for rejection (saved with review)"
     : "Finance comments";
   document.querySelector("#finance-review-stage-note").textContent = canDecide
-    ? "Saving an approval emails Health & Safety and the Project Engineer. A rejection emails the Project Owner."
-    : "Finance decisions unlock after Purchasing approves and emails the assigned Finance contact.";
+    ? "Email addresses and comments are saved with the review. No emails are sent."
+    : "Finance decisions unlock after Purchasing approval. Email addresses and comments are saved only.";
 }
 
 function renderFinanceReview() {
@@ -528,7 +528,7 @@ function renderFinanceReview() {
   form.querySelector('[name="comments"]').value = review?.comments || "";
   form.querySelector('[type="submit"]').disabled = !contractorId;
   document.querySelector("#finance-review-updated").textContent = review?.updatedAt
-    ? `Last saved ${new Date(review.updatedAt).toLocaleDateString()}${review.approvalNotificationSentAt || review.rejectionNotificationSentAt ? " · Email sent" : ""}`
+    ? `Last saved ${new Date(review.updatedAt).toLocaleDateString()}`
     : "";
   renderFinanceWorkflowFields();
 }
@@ -1010,7 +1010,7 @@ document.querySelector("#purchasing-review-form").addEventListener("submit", asy
     else purchasingReviews.push(review);
     renderPurchasingReview();
     renderFinanceReview();
-    showToast(review.notificationSentAt ? "Purchasing review saved; Finance was emailed." : "Purchasing review saved.");
+    showToast("Purchasing review saved. No email was sent.");
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -1038,10 +1038,7 @@ document.querySelector("#finance-review-form").addEventListener("submit", async 
     if (index >= 0) financeReviews[index] = review;
     else financeReviews.push(review);
     renderFinanceReview();
-    const notificationSent = review.approvalNotificationSentAt || review.rejectionNotificationSentAt;
-    showToast(notificationSent
-      ? "Finance review saved; the relevant team was emailed."
-      : "Finance review saved.");
+    showToast("Finance review saved. No email was sent.");
   } catch (error) {
     showToast(error.message);
   } finally {

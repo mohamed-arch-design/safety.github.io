@@ -69,18 +69,10 @@ registration forms, quotations with a name or reference, and other supplier
 documents with a document name; add multiple supplier documents as needed. Each
 file is stored against the selected contractor. The purchasing team can record
 a named reviewer, an approved / not-approved decision, and comments for each
-contractor. When Purchasing approves, the configured Finance contact is emailed
-the decision and comments. Finance can then approve and notify Health & Safety
-and the Project Engineer, or reject with a required reason sent to the manually
-entered Project Owner email. Repeated saves with unchanged decisions do not
-send duplicate notifications.
-
-Automatic notifications use SMTP. Configure `SMTP_HOST`, `SMTP_PORT`,
-`SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, and `EMAIL_FROM` in the hosting
-environment (for Render, use the service's Environment settings). Use credentials
-from an SMTP provider and a sender address authorized by that provider. Keep
-credentials out of the repository. If SMTP delivery fails, the review is saved
-and the app reports that the email was not sent so the user can retry.
+contractor. The review forms save the Finance, Health & Safety,
+Project Engineer, and Project Owner email addresses, decisions, and comments for
+reference. This is currently a record-keeping interface only; it does not send
+email notifications.
 
 Uploads accept PDF, JPG, and PNG files up to 10 MB, and the server checks the
 file signature before storing them. Downloads and API endpoints require the
