@@ -398,6 +398,16 @@ function renderContractorOptions() {
     `<option value="${escapeHtml(contractor.id)}">${escapeHtml(contractor.name)} — ${escapeHtml(contractor.project || "Project not recorded")}</option>`
   ).join("");
   if (contractors.some(({ id }) => id === selectedContractorId)) purchasingContractor.value = selectedContractorId;
+  const inductionContractor = document.querySelector("#induction-contractor");
+  const selectedInductionContractorId = inductionContractor.value;
+  inductionContractor.innerHTML = '<option value="">Select a contractor</option>' + contractors.map((contractor) =>
+    `<option value="${escapeHtml(contractor.id)}">${escapeHtml(contractor.name)} — ${escapeHtml(contractor.project || "Project not recorded")}</option>`
+  ).join("");
+  if (contractors.some(({ id }) => id === selectedInductionContractorId)) {
+    inductionContractor.value = selectedInductionContractorId;
+  } else if (contractors.some(({ id }) => id === selectedContractorId)) {
+    inductionContractor.value = selectedContractorId;
+  }
   renderPurchasing();
 }
 
@@ -526,7 +536,7 @@ function renderFinanceReview() {
 }
 
 function renderInductionRegister() {
-  const contractorId = document.querySelector("#purchasing-contractor").value;
+  const contractorId = document.querySelector("#induction-contractor").value;
   const form = document.querySelector("#induction-form");
   const crewSelect = form.querySelector('[name="crewName"]');
   const previousCrew = crewSelect.value;
@@ -556,6 +566,13 @@ function renderInductionRegister() {
     input.disabled = !selectedMember;
   });
   form.querySelector('[type="submit"]').disabled = !selectedMember;
+  const message = document.querySelector("#induction-form-message");
+  message.textContent = !contractorId
+    ? "Choose a contractor to load their crew list."
+    : crewMembers.length
+      ? "Choose a crew member to view or update their induction record."
+      : "No crew is listed yet. Submit contractor documents with crew certifications to populate this register.";
+  message.hidden = Boolean(selectedMember);
 
   const register = document.querySelector("#induction-register-list");
   if (!inductions.length) {
@@ -820,7 +837,11 @@ async function loadData() {
 contractorSearch.addEventListener("input", renderContractors);
 statusFilter.addEventListener("change", renderContractors);
 document.querySelector("#approved-site-filter").addEventListener("change", renderApprovedContractors);
-document.querySelector("#purchasing-contractor").addEventListener("change", renderPurchasing);
+document.querySelector("#purchasing-contractor").addEventListener("change", () => {
+  document.querySelector("#induction-contractor").value = document.querySelector("#purchasing-contractor").value;
+  renderPurchasing();
+});
+document.querySelector("#induction-contractor").addEventListener("change", renderInductionRegister);
 document.querySelector("#induction-form [name=\"crewName\"]").addEventListener("change", renderInductionRegister);
 document.querySelector("#induction-form [name=\"inductionCompleted\"]").addEventListener("change", syncInductionFields);
 document.querySelector("#purchasing-review-form [name=\"approvalStatus\"]")
@@ -1053,7 +1074,7 @@ document.querySelector("#purchasing-requirements").addEventListener("submit", as
 document.querySelector("#purchasing-review-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
-  const contractorId = document.querySelector("#purchasing-contractor").value;
+  const contractorId = document.querySelector("#induction-contractor").value;
   if (!contractorId) {
     showToast("Select a contractor before saving a purchasing review.");
     return;

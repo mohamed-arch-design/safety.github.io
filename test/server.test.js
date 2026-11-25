@@ -149,6 +149,8 @@ test("requires authentication and persists new contractors", async () => {
   assert.match(homepageHtml, /id="project-owner-email-field"/);
   assert.match(homepageHtml, /id="purchasing-project-owner-email-field"/);
   assert.match(homepageHtml, /id="induction-form"/);
+  assert.match(homepageHtml, /id="induction-contractor"/);
+  assert.match(homepageHtml, /id="induction-form-message"/);
   assert.match(homepageHtml, /name="facilitiesWelfareExplained"/);
   assert.match(homepageHtml, /name="fireAssemblyPointExplained"/);
   const financeForm = homepageHtml.match(/<form id="finance-review-form">([\s\S]*?)<\/form>/)?.[1];

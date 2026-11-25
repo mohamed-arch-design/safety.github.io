@@ -367,7 +367,9 @@
             </section>
             <section class="purchasing-review induction-review" aria-labelledby="induction-title">
               <h3 id="induction-title">Health &amp; Safety Induction Register</h3>
-              <p>Select a contractor above. Crew names are populated from their submitted certification records. Record induction dates, expiry, and site briefing confirmations for each crew member.</p>
+              <p>Crew names are populated from the selected contractor’s submitted certification records. Record induction dates, expiry, and site briefing confirmations for each crew member.</p>
+              <label class="form-field induction-contractor-select"><span>Contractor</span><select id="induction-contractor" required><option value="">Select a contractor</option></select></label>
+              <p id="induction-form-message" class="induction-form-message">Choose a contractor to load their crew list.</p>
               <form id="induction-form">
                 <label class="form-field"><span>Crew member</span><select name="crewName" required disabled><option value="">Select a contractor first</option></select></label>
                 <label class="form-field"><span>Induction completed?</span><select name="inductionCompleted" required><option value="">Select yes or no</option><option value="Yes">Yes</option><option value="No">No</option></select></label>
