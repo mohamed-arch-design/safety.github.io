@@ -700,7 +700,7 @@ function createPermitSubmission() {
       formData.set(field, date.toISOString());
     }
   });
-  return payload;
+  return formData;
 }
 
 async function loadData() {
