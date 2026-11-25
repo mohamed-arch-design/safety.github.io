@@ -780,11 +780,8 @@ export function createApp({
         throw new HttpError(404, "Contractor not found.");
       }
       const purchasingReview = db.prepare(`
-        SELECT approval_status, finance_email FROM purchasing_reviews WHERE contractor_id = ?
+        SELECT finance_email FROM purchasing_reviews WHERE contractor_id = ?
       `).get(contractorId);
-      if (approvalStatus !== "Pending" && purchasingReview?.approval_status !== "Approved") {
-        throw new HttpError(409, "Purchasing must approve before Finance can record a decision.");
-      }
       const financeEmail = purchasingReview?.finance_email || "";
       const updatedAt = new Date().toISOString();
       db.prepare(`

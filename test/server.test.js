@@ -210,7 +210,7 @@ test("requires authentication and persists new contractors", async () => {
   assert.deepEqual((await list.json()).map(({ id }) => id), [secondContractor.id, contractor.id]);
 });
 
-test("saves staged purchasing and finance review details without sending email", async () => {
+test("saves purchasing and finance review details without sending email", async () => {
   const fixture = await createFixture();
   const contractorResponse = await fetch(`${fixture.baseUrl}/api/contractors`, {
     method: "POST",
@@ -239,7 +239,7 @@ test("saves staged purchasing and finance review details without sending email",
       projectOwnerEmail: "owner@example.com",
     }),
   });
-  assert.equal(prematureDecision.status, 409);
+  assert.equal(prematureDecision.status, 200);
 
   const purchasingUrl = `${fixture.baseUrl}/api/purchasing/reviews/${contractor.id}`;
   const missingFinanceEmail = await fetch(purchasingUrl, {

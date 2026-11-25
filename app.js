@@ -485,17 +485,9 @@ function renderPurchasingApprovalFields() {
 
 function renderFinanceWorkflowFields() {
   const form = document.querySelector("#finance-review-form");
-  const purchasingReview = purchasingReviews.find(({ contractorId }) =>
-    contractorId === document.querySelector("#purchasing-contractor").value,
-  );
-  const canDecide = purchasingReview?.approvalStatus === "Approved";
   const status = form.querySelector('[name="approvalStatus"]');
-  for (const option of status.options) {
-    if (option.value !== "Pending") option.disabled = !canDecide;
-  }
-  if (!canDecide && status.value !== "Pending") status.value = "Pending";
-  const isApproved = canDecide && status.value === "Approved";
-  const isRejected = canDecide && status.value === "Not approved";
+  const isApproved = status.value === "Approved";
+  const isRejected = status.value === "Not approved";
   const conditionalFields = [
     ["#health-safety-email-field", "healthSafetyEmail", isApproved],
     ["#project-owner-email-field", "projectOwnerEmail", isApproved || isRejected],
@@ -513,9 +505,6 @@ function renderFinanceWorkflowFields() {
   form.querySelector("#finance-comments-label").textContent = isRejected
     ? "Reason for rejection (saved with review)"
     : "Finance comments";
-  document.querySelector("#finance-review-stage-note").textContent = canDecide
-    ? "Email addresses and comments are saved with the review. No emails are sent."
-    : "Finance decisions unlock after Purchasing approval. Email addresses and comments are saved only.";
 }
 
 function renderFinanceReview() {
