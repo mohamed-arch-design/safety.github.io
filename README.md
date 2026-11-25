@@ -30,9 +30,10 @@ values for `ADMIN_USER` and `ADMIN_PASSWORD` when prompted. Render builds and
 starts the Node.js service and provides its HTTPS URL.
 
 The Blueprint uses a paid Starter web service with a 1 GB persistent disk
-mounted at `/var/data`. The disk stores both the SQLite database and uploaded
-documents so they persist across deploys. Do not remove the disk or change
-`DATA_DIRECTORY` without first backing up its contents.
+mounted at `/var/data`. SQLite data and uploaded documents are stored in the
+`/var/data/tricel-safety-workspace` subdirectory so the app does not change
+permissions on the disk mount itself. They persist across deploys. Do not remove
+the disk or change `DATA_DIRECTORY` without first backing up its contents.
 
 ## Document submissions
 

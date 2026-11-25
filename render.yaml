@@ -13,7 +13,7 @@ services:
       - key: NODE_VERSION
         value: 22.13.0
       - key: DATA_DIRECTORY
-        value: /var/data
+        value: /var/data/tricel-safety-workspace
       - key: ADMIN_USER
         sync: false
       - key: ADMIN_PASSWORD
