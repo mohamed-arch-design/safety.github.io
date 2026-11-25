@@ -346,6 +346,7 @@
                 <label class="form-field"><span>Reviewer name</span><input name="reviewerName" type="text" maxlength="80" placeholder="Purchasing reviewer name" required /></label>
                 <label class="form-field"><span>Approved by purchasing?</span><select name="approvalStatus" required><option value="">Select yes or no</option><option value="Approved">Yes — approved</option><option value="Not approved">No — not approved</option></select></label>
                 <label class="form-field" id="purchasing-finance-email-field" hidden><span>Finance email address (saved only)</span><input name="financeEmail" type="email" maxlength="120" placeholder="finance@example.com" /></label>
+                <label class="form-field" id="purchasing-project-owner-email-field" hidden><span>Project Owner email address (saved only; no email is sent)</span><input name="projectOwnerEmail" type="email" maxlength="120" placeholder="owner@example.com" /></label>
                 <label class="form-field purchasing-review-comment"><span>Comments</span><textarea name="comments" maxlength="2000" placeholder="Add purchasing review comments"></textarea></label>
                 <button class="button button-primary" id="save-purchasing-review" type="submit" disabled>Save purchasing review</button>
                 <span class="purchasing-review-updated" id="purchasing-review-updated"></span>

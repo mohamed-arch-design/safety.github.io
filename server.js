@@ -155,6 +155,7 @@ function purchasingReviewFromRow(row) {
     reviewerName: row.reviewer_name,
     approvalStatus: row.approval_status,
     financeEmail: row.finance_email,
+    projectOwnerEmail: row.project_owner_email,
     comments: row.comments,
     updatedAt: row.updated_at,
   };
@@ -332,6 +333,7 @@ export function createApp({
       reviewer_name TEXT NOT NULL,
       approval_status TEXT NOT NULL CHECK (approval_status IN ('Approved', 'Not approved')),
       finance_email TEXT NOT NULL DEFAULT '',
+      project_owner_email TEXT NOT NULL DEFAULT '',
       comments TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL
     );
@@ -350,7 +352,10 @@ export function createApp({
     CREATE UNIQUE INDEX contractors_email_unique ON contractors(lower(email)) WHERE email <> '';
   `);
   const purchasingReviewColumns = new Set(db.prepare("PRAGMA table_info(purchasing_reviews)").all().map(({ name }) => name));
-  const purchasingReviewMigrations = [["finance_email", "TEXT NOT NULL DEFAULT ''"]];
+  const purchasingReviewMigrations = [
+    ["finance_email", "TEXT NOT NULL DEFAULT ''"],
+    ["project_owner_email", "TEXT NOT NULL DEFAULT ''"],
+  ];
   for (const [name, definition] of purchasingReviewMigrations) {
     if (!purchasingReviewColumns.has(name)) {
       db.exec(`ALTER TABLE purchasing_reviews ADD COLUMN ${name} ${definition}`);
@@ -702,6 +707,12 @@ export function createApp({
       if (financeEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(financeEmail)) {
         throw new HttpError(400, "Enter a valid finance email address.");
       }
+      const projectOwnerEmail = approvalStatus === "Not approved"
+        ? validateEmail(req.body?.projectOwnerEmail, "Project Owner email address")
+        : validateOptionalText(req.body?.projectOwnerEmail, "Project Owner email address", 120);
+      if (projectOwnerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(projectOwnerEmail)) {
+        throw new HttpError(400, "Enter a valid Project Owner email address.");
+      }
       const comments = validateOptionalText(req.body?.comments, "Purchasing review comments", 2000);
       const contractor = db.prepare("SELECT id, name, project FROM contractors WHERE id = ?").get(contractorId);
       if (!contractor) {
@@ -709,15 +720,18 @@ export function createApp({
       }
       const updatedAt = new Date().toISOString();
       db.prepare(`
-        INSERT INTO purchasing_reviews (contractor_id, reviewer_name, approval_status, finance_email, comments, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO purchasing_reviews (
+          contractor_id, reviewer_name, approval_status, finance_email, project_owner_email, comments, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(contractor_id) DO UPDATE SET
           reviewer_name = excluded.reviewer_name,
           approval_status = excluded.approval_status,
           finance_email = excluded.finance_email,
+          project_owner_email = excluded.project_owner_email,
           comments = excluded.comments,
           updated_at = excluded.updated_at
-      `).run(contractorId, reviewerName, approvalStatus, financeEmail, comments, updatedAt);
+      `).run(contractorId, reviewerName, approvalStatus, financeEmail, projectOwnerEmail, comments, updatedAt);
       const record = db.prepare(`
         SELECT purchasing_reviews.*, contractors.name AS contractor_name
         FROM purchasing_reviews

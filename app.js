@@ -461,6 +461,7 @@ function renderPurchasingReview() {
   form.querySelector('[name="reviewerName"]').value = review?.reviewerName || "";
   form.querySelector('[name="approvalStatus"]').value = review?.approvalStatus || "";
   form.querySelector('[name="financeEmail"]').value = review?.financeEmail || "";
+  form.querySelector('[name="projectOwnerEmail"]').value = review?.projectOwnerEmail || "";
   form.querySelector('[name="comments"]').value = review?.comments || "";
   form.querySelector('[type="submit"]').disabled = !contractorId;
   document.querySelector("#purchasing-review-updated").textContent = review?.updatedAt
@@ -471,10 +472,15 @@ function renderPurchasingReview() {
 
 function renderPurchasingApprovalFields() {
   const form = document.querySelector("#purchasing-review-form");
-  const isApproved = form.querySelector('[name="approvalStatus"]').value === "Approved";
-  const field = form.querySelector("#purchasing-finance-email-field");
-  field.hidden = !isApproved;
-  field.querySelector("input").required = isApproved;
+  const approvalStatus = form.querySelector('[name="approvalStatus"]').value;
+  const isApproved = approvalStatus === "Approved";
+  const isRejected = approvalStatus === "Not approved";
+  const financeField = form.querySelector("#purchasing-finance-email-field");
+  financeField.hidden = !isApproved;
+  financeField.querySelector("input").required = isApproved;
+  const ownerField = form.querySelector("#purchasing-project-owner-email-field");
+  ownerField.hidden = !isRejected;
+  ownerField.querySelector("input").required = isRejected;
 }
 
 function renderFinanceWorkflowFields() {

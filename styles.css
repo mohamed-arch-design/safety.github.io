@@ -436,6 +436,7 @@ tbody tr:hover { background: #fcfdfb; }
 #purchasing-review-form textarea, #finance-review-form textarea { min-height: 64px; }
 #purchasing-review-form .button, #finance-review-form .button { justify-self: start; align-self: start; margin-bottom: 12px; }
 #purchasing-finance-email-field[hidden],
+#purchasing-project-owner-email-field[hidden],
 #health-safety-email-field[hidden],
 #project-engineer-email-field[hidden],
 #project-owner-email-field[hidden] { display: none; }

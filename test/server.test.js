@@ -149,6 +149,7 @@ test("requires authentication and persists new contractors", async () => {
   assert.match(homepageHtml, /id="health-safety-email-field"/);
   assert.match(homepageHtml, /id="project-engineer-email-field"/);
   assert.match(homepageHtml, /id="project-owner-email-field"/);
+  assert.match(homepageHtml, /id="purchasing-project-owner-email-field"/);
   assert.equal(homepageHtml.match(/name="site" required/g)?.length, 2);
   for (const site of ["Tricel Weston", "Tricel Killarney", "Tricel Gloucester"]) {
     assert.match(homepageHtml, new RegExp(`<option>${site}</option>`));
@@ -360,12 +361,24 @@ test("stores purchasing templates and named supplier documents for existing cont
     body: JSON.stringify({ reviewerName: "Jordan Lee", approvalStatus: "Maybe", comments: "Check quote." }),
   });
   assert.equal(invalidReview.status, 400);
+  const invalidProjectOwnerEmail = await fetch(`${fixture.baseUrl}/api/purchasing/reviews/${contractor.id}`, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      reviewerName: "Jordan Lee",
+      approvalStatus: "Not approved",
+      projectOwnerEmail: "not-an-email",
+      comments: "Please update the quotation.",
+    }),
+  });
+  assert.equal(invalidProjectOwnerEmail.status, 400);
   const savedReview = await fetch(`${fixture.baseUrl}/api/purchasing/reviews/${contractor.id}`, {
     method: "PUT",
     headers: { ...fixture.headers, "Content-Type": "application/json" },
     body: JSON.stringify({
       reviewerName: "Jordan Lee",
       approvalStatus: "Not approved",
+      projectOwnerEmail: "owner@example.com",
       comments: "Please update the quotation.",
     }),
   });
@@ -376,6 +389,7 @@ test("stores purchasing templates and named supplier documents for existing cont
     reviewerName: "Jordan Lee",
     approvalStatus: "Not approved",
     financeEmail: "",
+    projectOwnerEmail: "owner@example.com",
     comments: "Please update the quotation.",
     updatedAt: (await fixture.app.locals.database.prepare(
       "SELECT updated_at FROM purchasing_reviews WHERE contractor_id = ?",
