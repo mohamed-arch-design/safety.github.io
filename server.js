@@ -1,10 +1,11 @@
-import { timingSafeEqual, randomUUID } from "node:crypto";
+import { createHash, timingSafeEqual, randomUUID } from "node:crypto";
 import { chmodSync, mkdirSync } from "node:fs";
 import { chmod, open, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import multer from "multer";
+import nodemailer from "nodemailer";
 import { DatabaseSync } from "node:sqlite";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -89,6 +90,33 @@ function validateOptionalText(value, label, maxLength) {
   return value.trim();
 }
 
+function validateEmail(value, label) {
+  const email = validateText(value, label, 120);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new HttpError(400, `Enter a valid ${label.toLowerCase()}.`);
+  }
+  return email;
+}
+
+function createSmtpTransport() {
+  const { SMTP_HOST, SMTP_USER, SMTP_PASSWORD } = process.env;
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASSWORD) return null;
+  const port = Number(process.env.SMTP_PORT || 587);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("SMTP_PORT must be a valid TCP port.");
+  }
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port,
+    secure: process.env.SMTP_SECURE === "true",
+    auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
+  });
+}
+
+function emailFingerprint(to, subject, text) {
+  return createHash("sha256").update(JSON.stringify({ to, subject, text })).digest("hex");
+}
+
 function contractorFromRow(row) {
   return {
     id: row.id,
@@ -146,7 +174,9 @@ function purchasingReviewFromRow(row) {
     contractorName: row.contractor_name,
     reviewerName: row.reviewer_name,
     approvalStatus: row.approval_status,
+    financeEmail: row.finance_email,
     comments: row.comments,
+    notificationSentAt: row.notification_sent_at,
     updatedAt: row.updated_at,
   };
 }
@@ -157,8 +187,13 @@ function financeReviewFromRow(row) {
     contractorName: row.contractor_name,
     financeName: row.finance_name,
     financeEmail: row.finance_email,
+    healthSafetyEmail: row.health_safety_email,
+    projectEngineerEmail: row.project_engineer_email,
+    projectOwnerEmail: row.project_owner_email,
     approvalStatus: row.approval_status,
     comments: row.comments,
+    approvalNotificationSentAt: row.approval_notification_sent_at,
+    rejectionNotificationSentAt: row.rejection_notification_sent_at,
     updatedAt: row.updated_at,
   };
 }
@@ -228,6 +263,8 @@ export function createApp({
   databasePath = path.join(process.env.DATA_DIRECTORY || path.join(root, "data"), "tricel.sqlite"),
   uploadDirectory = path.join(process.env.DATA_DIRECTORY || path.join(root, "data"), "uploads"),
   credentials = { username: process.env.ADMIN_USER, password: process.env.ADMIN_PASSWORD },
+  emailTransport = createSmtpTransport(),
+  emailFrom = process.env.EMAIL_FROM,
 } = {}) {
   if (!credentials?.username || !credentials?.password) {
     throw new Error("Set ADMIN_USER and ADMIN_PASSWORD before starting the server.");
@@ -319,7 +356,10 @@ export function createApp({
       contractor_id TEXT PRIMARY KEY REFERENCES contractors(id),
       reviewer_name TEXT NOT NULL,
       approval_status TEXT NOT NULL CHECK (approval_status IN ('Approved', 'Not approved')),
+      finance_email TEXT NOT NULL DEFAULT '',
       comments TEXT NOT NULL DEFAULT '',
+      notification_fingerprint TEXT NOT NULL DEFAULT '',
+      notification_sent_at TEXT,
       updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS finance_reviews (
@@ -327,12 +367,45 @@ export function createApp({
       finance_name TEXT NOT NULL,
       finance_email TEXT NOT NULL,
       approval_status TEXT NOT NULL CHECK (approval_status IN ('Pending', 'Approved', 'Not approved')),
+      health_safety_email TEXT NOT NULL DEFAULT '',
+      project_engineer_email TEXT NOT NULL DEFAULT '',
+      project_owner_email TEXT NOT NULL DEFAULT '',
       comments TEXT NOT NULL DEFAULT '',
+      approval_notification_fingerprint TEXT NOT NULL DEFAULT '',
+      approval_notification_sent_at TEXT,
+      rejection_notification_fingerprint TEXT NOT NULL DEFAULT '',
+      rejection_notification_sent_at TEXT,
       updated_at TEXT NOT NULL
     );
     DROP INDEX IF EXISTS contractors_email_unique;
     CREATE UNIQUE INDEX contractors_email_unique ON contractors(lower(email)) WHERE email <> '';
   `);
+  const purchasingReviewColumns = new Set(db.prepare("PRAGMA table_info(purchasing_reviews)").all().map(({ name }) => name));
+  const purchasingReviewMigrations = [
+    ["finance_email", "TEXT NOT NULL DEFAULT ''"],
+    ["notification_fingerprint", "TEXT NOT NULL DEFAULT ''"],
+    ["notification_sent_at", "TEXT"],
+  ];
+  for (const [name, definition] of purchasingReviewMigrations) {
+    if (!purchasingReviewColumns.has(name)) {
+      db.exec(`ALTER TABLE purchasing_reviews ADD COLUMN ${name} ${definition}`);
+    }
+  }
+  const financeReviewColumns = new Set(db.prepare("PRAGMA table_info(finance_reviews)").all().map(({ name }) => name));
+  const financeReviewMigrations = [
+    ["health_safety_email", "TEXT NOT NULL DEFAULT ''"],
+    ["project_engineer_email", "TEXT NOT NULL DEFAULT ''"],
+    ["project_owner_email", "TEXT NOT NULL DEFAULT ''"],
+    ["approval_notification_fingerprint", "TEXT NOT NULL DEFAULT ''"],
+    ["approval_notification_sent_at", "TEXT"],
+    ["rejection_notification_fingerprint", "TEXT NOT NULL DEFAULT ''"],
+    ["rejection_notification_sent_at", "TEXT"],
+  ];
+  for (const [name, definition] of financeReviewMigrations) {
+    if (!financeReviewColumns.has(name)) {
+      db.exec(`ALTER TABLE finance_reviews ADD COLUMN ${name} ${definition}`);
+    }
+  }
   const contractorColumns = new Set(db.prepare("PRAGMA table_info(contractors)").all().map(({ name }) => name));
   if (!contractorColumns.has("site")) {
     db.exec("ALTER TABLE contractors ADD COLUMN site TEXT NOT NULL DEFAULT 'Unassigned'");
@@ -417,6 +490,18 @@ export function createApp({
   });
   app.use(basicAuth(credentials));
   app.use(express.json({ limit: "32kb" }));
+
+  async function sendWorkflowEmail(to, subject, text) {
+    if (!emailTransport || !emailFrom) {
+      throw new HttpError(503, "Email is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and EMAIL_FROM in Render.");
+    }
+    try {
+      await emailTransport.sendMail({ from: emailFrom, to, subject, text });
+    } catch (error) {
+      console.error("Workflow email delivery failed:", error);
+      throw new HttpError(502, "The review was saved, but its email could not be sent. Check SMTP settings and save again.");
+    }
+  }
 
   const storage = multer.diskStorage({
     destination: (_req, _file, callback) => callback(null, resolvedUploadDirectory),
@@ -654,7 +739,7 @@ export function createApp({
     res.json(records.map(purchasingReviewFromRow));
   });
 
-  app.put("/api/purchasing/reviews/:contractorId", (req, res, next) => {
+  app.put("/api/purchasing/reviews/:contractorId", async (req, res, next) => {
     try {
       const { contractorId } = req.params;
       const approvalStatus = req.body?.approvalStatus;
@@ -662,20 +747,60 @@ export function createApp({
         throw new HttpError(400, "Select whether purchasing approved this contractor.");
       }
       const reviewerName = validateText(req.body?.reviewerName, "Purchasing reviewer name", 80);
+      const financeEmail = approvalStatus === "Approved"
+        ? validateEmail(req.body?.financeEmail, "Finance email address")
+        : validateOptionalText(req.body?.financeEmail, "Finance email address", 120);
+      if (financeEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(financeEmail)) {
+        throw new HttpError(400, "Enter a valid finance email address.");
+      }
       const comments = validateOptionalText(req.body?.comments, "Purchasing review comments", 2000);
-      if (!db.prepare("SELECT id FROM contractors WHERE id = ?").get(contractorId)) {
+      const contractor = db.prepare("SELECT id, name, project FROM contractors WHERE id = ?").get(contractorId);
+      if (!contractor) {
         throw new HttpError(404, "Contractor not found.");
       }
+      const previous = db.prepare("SELECT * FROM purchasing_reviews WHERE contractor_id = ?").get(contractorId);
       const updatedAt = new Date().toISOString();
       db.prepare(`
-        INSERT INTO purchasing_reviews (contractor_id, reviewer_name, approval_status, comments, updated_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO purchasing_reviews (contractor_id, reviewer_name, approval_status, finance_email, comments, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(contractor_id) DO UPDATE SET
           reviewer_name = excluded.reviewer_name,
           approval_status = excluded.approval_status,
+          finance_email = excluded.finance_email,
           comments = excluded.comments,
           updated_at = excluded.updated_at
-      `).run(contractorId, reviewerName, approvalStatus, comments, updatedAt);
+      `).run(contractorId, reviewerName, approvalStatus, financeEmail, comments, updatedAt);
+      if (approvalStatus !== "Approved") {
+        db.prepare(`
+          UPDATE purchasing_reviews
+          SET notification_fingerprint = '', notification_sent_at = NULL
+          WHERE contractor_id = ?
+        `).run(contractorId);
+      } else {
+        const subject = `Purchasing approved insurance review: ${contractor.name}`;
+        const text = [
+          `Hello Finance,`,
+          ``,
+          `Purchasing has approved the insurance review for ${contractor.name}.`,
+          `Project: ${contractor.project || "Not recorded"}`,
+          `Purchasing reviewer: ${reviewerName}`,
+          `Purchasing comments: ${comments || "None"}`,
+          ``,
+          `Please review the insurance and record your decision in the Tricel Safety Workspace.`,
+        ].join("\n");
+        const fingerprint = emailFingerprint(financeEmail, subject, text);
+        const shouldSend = previous?.approval_status !== "Approved"
+          || previous.notification_fingerprint !== fingerprint
+          || !previous.notification_sent_at;
+        if (shouldSend) {
+          await sendWorkflowEmail(financeEmail, subject, text);
+          db.prepare(`
+            UPDATE purchasing_reviews
+            SET notification_fingerprint = ?, notification_sent_at = ?
+            WHERE contractor_id = ?
+          `).run(fingerprint, new Date().toISOString(), contractorId);
+        }
+      }
       const record = db.prepare(`
         SELECT purchasing_reviews.*, contractors.name AS contractor_name
         FROM purchasing_reviews
@@ -698,7 +823,7 @@ export function createApp({
     res.json(records.map(financeReviewFromRow));
   });
 
-  app.put("/api/finance/reviews/:contractorId", (req, res, next) => {
+  app.put("/api/finance/reviews/:contractorId", async (req, res, next) => {
     try {
       const { contractorId } = req.params;
       const approvalStatus = req.body?.approvalStatus;
@@ -706,25 +831,132 @@ export function createApp({
         throw new HttpError(400, "Select a valid finance insurance verification status.");
       }
       const financeName = validateText(req.body?.financeName, "Finance reviewer name", 80);
-      const financeEmail = validateText(req.body?.financeEmail, "Finance reviewer email address", 120);
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(financeEmail)) {
-        throw new HttpError(400, "Enter a valid finance reviewer email address.");
+      const financeEmail = approvalStatus === "Pending" && !req.body?.financeEmail
+        ? ""
+        : validateEmail(req.body?.financeEmail, "Finance reviewer email address");
+      const healthSafetyEmail = approvalStatus === "Approved"
+        ? validateEmail(req.body?.healthSafetyEmail, "Health & Safety email address")
+        : validateOptionalText(req.body?.healthSafetyEmail, "Health & Safety email address", 120);
+      const projectEngineerEmail = approvalStatus === "Approved"
+        ? validateEmail(req.body?.projectEngineerEmail, "Project Engineer email address")
+        : validateOptionalText(req.body?.projectEngineerEmail, "Project Engineer email address", 120);
+      const projectOwnerEmail = approvalStatus === "Not approved"
+        ? validateEmail(req.body?.projectOwnerEmail, "Project Owner email address")
+        : validateOptionalText(req.body?.projectOwnerEmail, "Project Owner email address", 120);
+      for (const [email, label] of [
+        [healthSafetyEmail, "Health & Safety"],
+        [projectEngineerEmail, "Project Engineer"],
+        [projectOwnerEmail, "Project Owner"],
+      ]) {
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          throw new HttpError(400, `Enter a valid ${label} email address.`);
+        }
       }
-      const comments = validateOptionalText(req.body?.comments, "Finance review comments", 2000);
-      if (!db.prepare("SELECT id FROM contractors WHERE id = ?").get(contractorId)) {
+      const comments = approvalStatus === "Not approved"
+        ? validateText(req.body?.comments, "Finance rejection reason", 2000)
+        : validateOptionalText(req.body?.comments, "Finance review comments", 2000);
+      const contractor = db.prepare("SELECT id, name, project FROM contractors WHERE id = ?").get(contractorId);
+      if (!contractor) {
         throw new HttpError(404, "Contractor not found.");
       }
+      const purchasingReview = db.prepare(`
+        SELECT approval_status, finance_email FROM purchasing_reviews WHERE contractor_id = ?
+      `).get(contractorId);
+      if (approvalStatus !== "Pending" && purchasingReview?.approval_status !== "Approved") {
+        throw new HttpError(409, "Purchasing must approve and notify Finance before Finance can record a decision.");
+      }
+      if (approvalStatus !== "Pending" && purchasingReview?.finance_email
+        && financeEmail.toLowerCase() !== purchasingReview.finance_email.toLowerCase()) {
+        throw new HttpError(400, "Use the Finance email address assigned by Purchasing.");
+      }
+      const previous = db.prepare("SELECT * FROM finance_reviews WHERE contractor_id = ?").get(contractorId);
       const updatedAt = new Date().toISOString();
       db.prepare(`
-        INSERT INTO finance_reviews (contractor_id, finance_name, finance_email, approval_status, comments, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO finance_reviews (
+          contractor_id, finance_name, finance_email, approval_status,
+          health_safety_email, project_engineer_email, project_owner_email, comments, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(contractor_id) DO UPDATE SET
           finance_name = excluded.finance_name,
           finance_email = excluded.finance_email,
           approval_status = excluded.approval_status,
+          health_safety_email = excluded.health_safety_email,
+          project_engineer_email = excluded.project_engineer_email,
+          project_owner_email = excluded.project_owner_email,
           comments = excluded.comments,
           updated_at = excluded.updated_at
-      `).run(contractorId, financeName, financeEmail, approvalStatus, comments, updatedAt);
+      `).run(
+        contractorId, financeName, financeEmail, approvalStatus,
+        healthSafetyEmail, projectEngineerEmail, projectOwnerEmail, comments, updatedAt,
+      );
+      if (approvalStatus === "Approved") {
+        db.prepare(`
+          UPDATE finance_reviews
+          SET rejection_notification_fingerprint = '', rejection_notification_sent_at = NULL
+          WHERE contractor_id = ?
+        `).run(contractorId);
+        const recipients = [healthSafetyEmail, projectEngineerEmail];
+        const subject = `Insurance approved: ${contractor.name}`;
+        const text = [
+          `Hello,`,
+          ``,
+          `Finance has approved the insurance for ${contractor.name}.`,
+          `Project: ${contractor.project || "Not recorded"}`,
+          `Finance reviewer: ${financeName}`,
+          `Finance comments: ${comments || "None"}`,
+          ``,
+          `This update was sent to Health & Safety and the Project Engineer.`,
+        ].join("\n");
+        const fingerprint = emailFingerprint(recipients, subject, text);
+        const shouldSend = previous?.approval_status !== "Approved"
+          || previous.approval_notification_fingerprint !== fingerprint
+          || !previous.approval_notification_sent_at;
+        if (shouldSend) {
+          await sendWorkflowEmail(recipients, subject, text);
+          db.prepare(`
+            UPDATE finance_reviews
+            SET approval_notification_fingerprint = ?, approval_notification_sent_at = ?
+            WHERE contractor_id = ?
+          `).run(fingerprint, new Date().toISOString(), contractorId);
+        }
+      } else if (approvalStatus === "Not approved") {
+        db.prepare(`
+          UPDATE finance_reviews
+          SET approval_notification_fingerprint = '', approval_notification_sent_at = NULL
+          WHERE contractor_id = ?
+        `).run(contractorId);
+        const subject = `Insurance requires attention: ${contractor.name}`;
+        const text = [
+          `Hello Project Owner,`,
+          ``,
+          `Finance could not approve the insurance for ${contractor.name}.`,
+          `Project: ${contractor.project || "Not recorded"}`,
+          `Finance reviewer: ${financeName}`,
+          `Reason: ${comments}`,
+          ``,
+          `Please contact the contractor and arrange the required insurance updates.`,
+        ].join("\n");
+        const fingerprint = emailFingerprint(projectOwnerEmail, subject, text);
+        const shouldSend = previous?.approval_status !== "Not approved"
+          || previous.rejection_notification_fingerprint !== fingerprint
+          || !previous.rejection_notification_sent_at;
+        if (shouldSend) {
+          await sendWorkflowEmail(projectOwnerEmail, subject, text);
+          db.prepare(`
+            UPDATE finance_reviews
+            SET rejection_notification_fingerprint = ?, rejection_notification_sent_at = ?
+            WHERE contractor_id = ?
+          `).run(fingerprint, new Date().toISOString(), contractorId);
+        }
+      } else {
+        db.prepare(`
+          UPDATE finance_reviews
+          SET approval_notification_fingerprint = '', approval_notification_sent_at = NULL,
+              rejection_notification_fingerprint = '', rejection_notification_sent_at = NULL
+          WHERE contractor_id = ?
+        `).run(contractorId);
+      }
       const record = db.prepare(`
         SELECT finance_reviews.*, contractors.name AS contractor_name
         FROM finance_reviews

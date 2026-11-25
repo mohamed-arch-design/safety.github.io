@@ -435,7 +435,10 @@ tbody tr:hover { background: #fcfdfb; }
 #purchasing-review-form .purchasing-review-comment, #finance-review-form .purchasing-review-comment { grid-column: 1 / -1; }
 #purchasing-review-form textarea, #finance-review-form textarea { min-height: 64px; }
 #purchasing-review-form .button, #finance-review-form .button { justify-self: start; align-self: start; margin-bottom: 12px; }
-#finance-review-notify[hidden] { display: none; }
+#purchasing-finance-email-field[hidden],
+#health-safety-email-field[hidden],
+#project-engineer-email-field[hidden],
+#project-owner-email-field[hidden] { display: none; }
 .purchasing-review-updated { align-self: center; margin: 0 0 12px; color: #87918a; font-size: 9px; }
 .permit-requirements { grid-column: 1 / -1; min-width: 0; padding: 10px 12px 0; margin: 0 0 14px; border: 1px solid #e8ebe7; border-radius: 7px; }
 .permit-requirements legend { padding: 0 5px; color: #435047; font-size: 10px; font-weight: 700; }

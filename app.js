@@ -460,45 +460,77 @@ function renderPurchasingReview() {
   const form = document.querySelector("#purchasing-review-form");
   form.querySelector('[name="reviewerName"]').value = review?.reviewerName || "";
   form.querySelector('[name="approvalStatus"]').value = review?.approvalStatus || "";
+  form.querySelector('[name="financeEmail"]').value = review?.financeEmail || "";
   form.querySelector('[name="comments"]').value = review?.comments || "";
   form.querySelector('[type="submit"]').disabled = !contractorId;
   document.querySelector("#purchasing-review-updated").textContent = review?.updatedAt
-    ? `Last saved ${new Date(review.updatedAt).toLocaleDateString()}`
+    ? `Last saved ${new Date(review.updatedAt).toLocaleDateString()}${review.notificationSentAt ? " · Finance notified" : ""}`
     : "";
+  renderPurchasingApprovalFields();
 }
 
-function renderFinanceNotification() {
-  const link = document.querySelector("#finance-review-notify");
-  const contractor = contractors.find(({ id }) =>
-    id === document.querySelector("#purchasing-contractor").value,
+function renderPurchasingApprovalFields() {
+  const form = document.querySelector("#purchasing-review-form");
+  const isApproved = form.querySelector('[name="approvalStatus"]').value === "Approved";
+  const field = form.querySelector("#purchasing-finance-email-field");
+  field.hidden = !isApproved;
+  field.querySelector("input").required = isApproved;
+}
+
+function renderFinanceWorkflowFields() {
+  const form = document.querySelector("#finance-review-form");
+  const purchasingReview = purchasingReviews.find(({ contractorId }) =>
+    contractorId === document.querySelector("#purchasing-contractor").value,
   );
-  const financeEmail = document.querySelector('#finance-review-form [name="financeEmail"]').value.trim();
-  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(financeEmail);
-  if (!contractor || !validEmail) {
-    link.hidden = true;
-    link.removeAttribute("href");
-    return;
+  const canDecide = purchasingReview?.approvalStatus === "Approved";
+  const status = form.querySelector('[name="approvalStatus"]');
+  form.querySelector('[name="financeEmail"]').required = canDecide;
+  for (const option of status.options) {
+    if (option.value !== "Pending") option.disabled = !canDecide;
   }
-  const subject = `Insurance verification needed: ${contractor.name}`;
-  const body = `Hello ${document.querySelector('#finance-review-form [name="financeName"]').value.trim() || "Finance"},\n\nPlease verify the insurance for ${contractor.name} (${contractor.project || "project not recorded"}). Record your decision and any comments in the Safety Workspace.`;
-  const mailtoAddress = financeEmail.split("@").map(encodeURIComponent).join("@");
-  link.href = `mailto:${mailtoAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  link.hidden = false;
+  if (!canDecide && status.value !== "Pending") status.value = "Pending";
+  const isApproved = canDecide && status.value === "Approved";
+  const isRejected = canDecide && status.value === "Not approved";
+  const conditionalFields = [
+    ["#health-safety-email-field", "healthSafetyEmail", isApproved],
+    ["#project-engineer-email-field", "projectEngineerEmail", isApproved],
+    ["#project-owner-email-field", "projectOwnerEmail", isRejected],
+  ];
+  for (const [selector, name, visible] of conditionalFields) {
+    const field = form.querySelector(selector);
+    field.hidden = !visible;
+    field.querySelector(`[name="${name}"]`).required = visible;
+  }
+  const comments = form.querySelector('[name="comments"]');
+  comments.required = isRejected;
+  comments.placeholder = isRejected
+    ? "Required: explain why the insurance was not approved"
+    : "Add finance review comments";
+  form.querySelector("#finance-comments-label").textContent = isRejected
+    ? "Reason for rejection (sent to Project Owner)"
+    : "Finance comments";
+  document.querySelector("#finance-review-stage-note").textContent = canDecide
+    ? "Saving an approval emails Health & Safety and the Project Engineer. A rejection emails the Project Owner."
+    : "Finance decisions unlock after Purchasing approves and emails the assigned Finance contact.";
 }
 
 function renderFinanceReview() {
   const contractorId = document.querySelector("#purchasing-contractor").value;
   const review = financeReviews.find(({ contractorId: id }) => id === contractorId);
+  const purchasingReview = purchasingReviews.find(({ contractorId: id }) => id === contractorId);
   const form = document.querySelector("#finance-review-form");
   form.querySelector('[name="financeName"]').value = review?.financeName || "";
-  form.querySelector('[name="financeEmail"]').value = review?.financeEmail || "";
+  form.querySelector('[name="financeEmail"]').value = purchasingReview?.financeEmail || review?.financeEmail || "";
   form.querySelector('[name="approvalStatus"]').value = review?.approvalStatus || "Pending";
+  form.querySelector('[name="healthSafetyEmail"]').value = review?.healthSafetyEmail || "";
+  form.querySelector('[name="projectEngineerEmail"]').value = review?.projectEngineerEmail || "";
+  form.querySelector('[name="projectOwnerEmail"]').value = review?.projectOwnerEmail || "";
   form.querySelector('[name="comments"]').value = review?.comments || "";
   form.querySelector('[type="submit"]').disabled = !contractorId;
   document.querySelector("#finance-review-updated").textContent = review?.updatedAt
-    ? `Last saved ${new Date(review.updatedAt).toLocaleDateString()}`
+    ? `Last saved ${new Date(review.updatedAt).toLocaleDateString()}${review.approvalNotificationSentAt || review.rejectionNotificationSentAt ? " · Email sent" : ""}`
     : "";
-  renderFinanceNotification();
+  renderFinanceWorkflowFields();
 }
 
 function addSupplierDocumentEntry() {
@@ -730,7 +762,10 @@ contractorSearch.addEventListener("input", renderContractors);
 statusFilter.addEventListener("change", renderContractors);
 document.querySelector("#approved-site-filter").addEventListener("change", renderApprovedContractors);
 document.querySelector("#purchasing-contractor").addEventListener("change", renderPurchasing);
-document.querySelector("#finance-review-form").addEventListener("input", renderFinanceNotification);
+document.querySelector("#purchasing-review-form [name=\"approvalStatus\"]")
+  .addEventListener("change", renderPurchasingApprovalFields);
+document.querySelector("#finance-review-form [name=\"approvalStatus\"]")
+  .addEventListener("change", renderFinanceWorkflowFields);
 document.querySelector("#global-search").addEventListener("input", (event) => {
   contractorSearch.value = event.target.value;
   renderContractors();
@@ -974,7 +1009,8 @@ document.querySelector("#purchasing-review-form").addEventListener("submit", asy
     if (index >= 0) purchasingReviews[index] = review;
     else purchasingReviews.push(review);
     renderPurchasingReview();
-    showToast("Purchasing review saved.");
+    renderFinanceReview();
+    showToast(review.notificationSentAt ? "Purchasing review saved; Finance was emailed." : "Purchasing review saved.");
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -1002,7 +1038,10 @@ document.querySelector("#finance-review-form").addEventListener("submit", async 
     if (index >= 0) financeReviews[index] = review;
     else financeReviews.push(review);
     renderFinanceReview();
-    showToast("Finance insurance review saved.");
+    const notificationSent = review.approvalNotificationSentAt || review.rejectionNotificationSentAt;
+    showToast(notificationSent
+      ? "Finance review saved; the relevant team was emailed."
+      : "Finance review saved.");
   } catch (error) {
     showToast(error.message);
   } finally {

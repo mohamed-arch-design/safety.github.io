@@ -91,12 +91,14 @@ function permitSubmission({
   return form;
 }
 
-async function createFixture() {
+async function createFixture({ emailTransport = null } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), "tricel-safety-test-"));
   const app = createApp({
     databasePath: path.join(directory, "data", "test.sqlite"),
     uploadDirectory: path.join(directory, "uploads"),
     credentials,
+    emailTransport,
+    emailFrom: emailTransport ? "safety@example.com" : "",
   });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -146,7 +148,9 @@ test("requires authentication and persists new contractors", async () => {
   assert.equal(homepageHtml.match(/name="trade" type="text" list="trade-suggestions"/g)?.length, 2);
   assert.match(homepageHtml, /id="finance-review-form"/);
   assert.match(homepageHtml, /name="financeEmail" type="email"/);
-  assert.match(homepageHtml, /id="finance-review-notify"/);
+  assert.match(homepageHtml, /id="health-safety-email-field"/);
+  assert.match(homepageHtml, /id="project-engineer-email-field"/);
+  assert.match(homepageHtml, /id="project-owner-email-field"/);
   assert.equal(homepageHtml.match(/name="site" required/g)?.length, 2);
   for (const site of ["Tricel Weston", "Tricel Killarney", "Tricel Gloucester"]) {
     assert.match(homepageHtml, new RegExp(`<option>${site}</option>`));
@@ -207,7 +211,10 @@ test("requires authentication and persists new contractors", async () => {
 });
 
 test("assigns a finance reviewer and saves an insurance verification decision", async () => {
-  const fixture = await createFixture();
+  const sentEmails = [];
+  const fixture = await createFixture({
+    emailTransport: { sendMail: async (message) => sentEmails.push(message) },
+  });
   const contractorResponse = await fetch(`${fixture.baseUrl}/api/contractors`, {
     method: "POST",
     headers: { ...fixture.headers, "Content-Type": "application/json" },
@@ -252,7 +259,59 @@ test("assigns a finance reviewer and saves an insurance verification decision", 
   assert.equal(assignedReview.financeEmail, "jordan@example.com");
   assert.equal(assignedReview.approvalStatus, "Pending");
 
-  const decision = await fetch(`${reviewsUrl}/${contractor.id}`, {
+  const prematureDecision = await fetch(`${reviewsUrl}/${contractor.id}`, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      financeName: "Jordan Lee",
+      financeEmail: "jordan@example.com",
+      approvalStatus: "Approved",
+      comments: "Insurance policy verified.",
+      healthSafetyEmail: "safety@example.com",
+      projectEngineerEmail: "engineer@example.com",
+    }),
+  });
+  assert.equal(prematureDecision.status, 409);
+
+  const purchasingUrl = `${fixture.baseUrl}/api/purchasing/reviews/${contractor.id}`;
+  const missingFinanceEmail = await fetch(purchasingUrl, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      reviewerName: "Casey Patel",
+      approvalStatus: "Approved",
+      financeEmail: "",
+      comments: "Documents received and checked.",
+    }),
+  });
+  assert.equal(missingFinanceEmail.status, 400);
+  const purchasingPayload = {
+    reviewerName: "Casey Patel",
+    approvalStatus: "Approved",
+    financeEmail: "jordan@example.com",
+    comments: "Documents received and checked.",
+  };
+  const purchasingApproval = await fetch(purchasingUrl, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify(purchasingPayload),
+  });
+  assert.equal(purchasingApproval.status, 200);
+  const purchasingReview = await purchasingApproval.json();
+  assert.ok(purchasingReview.notificationSentAt);
+  assert.equal(sentEmails.length, 1);
+  assert.equal(sentEmails[0].to, "jordan@example.com");
+  assert.match(sentEmails[0].text, /Documents received and checked/);
+
+  const repeatedPurchasingApproval = await fetch(purchasingUrl, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify(purchasingPayload),
+  });
+  assert.equal(repeatedPurchasingApproval.status, 200);
+  assert.equal(sentEmails.length, 1);
+
+  const missingApprovalRecipients = await fetch(`${reviewsUrl}/${contractor.id}`, {
     method: "PUT",
     headers: { ...fixture.headers, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -262,13 +321,121 @@ test("assigns a finance reviewer and saves an insurance verification decision", 
       comments: "Insurance policy verified.",
     }),
   });
+  assert.equal(missingApprovalRecipients.status, 400);
+
+  const decision = await fetch(`${reviewsUrl}/${contractor.id}`, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      financeName: "Jordan Lee",
+      financeEmail: "jordan@example.com",
+      approvalStatus: "Approved",
+      comments: "Insurance policy verified.",
+      healthSafetyEmail: "safety@example.com",
+      projectEngineerEmail: "engineer@example.com",
+    }),
+  });
   assert.equal(decision.status, 200);
   const savedReview = await decision.json();
   assert.equal(savedReview.approvalStatus, "Approved");
   assert.equal(savedReview.comments, "Insurance policy verified.");
+  assert.equal(savedReview.healthSafetyEmail, "safety@example.com");
+  assert.equal(savedReview.projectEngineerEmail, "engineer@example.com");
+  assert.ok(savedReview.approvalNotificationSentAt);
   assert.equal(savedReview.contractorName, contractor.name);
+  assert.equal(sentEmails.length, 2);
+  assert.deepEqual(sentEmails[1].to, ["safety@example.com", "engineer@example.com"]);
+  assert.match(sentEmails[1].text, /Insurance policy verified/);
+  const repeatedDecision = await fetch(`${reviewsUrl}/${contractor.id}`, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      financeName: "Jordan Lee",
+      financeEmail: "jordan@example.com",
+      approvalStatus: "Approved",
+      comments: "Insurance policy verified.",
+      healthSafetyEmail: "safety@example.com",
+      projectEngineerEmail: "engineer@example.com",
+    }),
+  });
+  assert.equal(repeatedDecision.status, 200);
+  assert.equal(sentEmails.length, 2);
   const persistedReviews = await fetch(reviewsUrl, { headers: fixture.headers });
-  assert.deepEqual(await persistedReviews.json(), [savedReview]);
+  const [persistedApprovedReview] = await persistedReviews.json();
+  assert.equal(persistedApprovedReview.approvalStatus, "Approved");
+  assert.equal(persistedApprovedReview.approvalNotificationSentAt, savedReview.approvalNotificationSentAt);
+
+  const rejectionWithoutReason = await fetch(`${reviewsUrl}/${contractor.id}`, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      financeName: "Jordan Lee",
+      financeEmail: "jordan@example.com",
+      approvalStatus: "Not approved",
+      comments: "",
+      projectOwnerEmail: "owner@example.com",
+    }),
+  });
+  assert.equal(rejectionWithoutReason.status, 400);
+
+  const rejectionPayload = {
+    financeName: "Jordan Lee",
+    financeEmail: "jordan@example.com",
+    approvalStatus: "Not approved",
+    comments: "The policy does not cover the required work.",
+    projectOwnerEmail: "owner@example.com",
+  };
+  const rejection = await fetch(`${reviewsUrl}/${contractor.id}`, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify(rejectionPayload),
+  });
+  assert.equal(rejection.status, 200);
+  const rejectedReview = await rejection.json();
+  assert.ok(rejectedReview.rejectionNotificationSentAt);
+  assert.equal(sentEmails.length, 3);
+  assert.equal(sentEmails[2].to, "owner@example.com");
+  assert.match(sentEmails[2].text, /The policy does not cover the required work/);
+
+  const repeatedRejection = await fetch(`${reviewsUrl}/${contractor.id}`, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify(rejectionPayload),
+  });
+  assert.equal(repeatedRejection.status, 200);
+  assert.equal(sentEmails.length, 3);
+});
+
+test("reports missing SMTP configuration after saving purchasing approval", async () => {
+  const fixture = await createFixture();
+  const contractorResponse = await fetch(`${fixture.baseUrl}/api/contractors`, {
+    method: "POST",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Alex Morgan",
+      email: "alex@example.com",
+      site: "Tricel Weston",
+      trade: "Electrical",
+      project: "Plant room upgrade",
+    }),
+  });
+  const contractor = await contractorResponse.json();
+  const response = await fetch(`${fixture.baseUrl}/api/purchasing/reviews/${contractor.id}`, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      reviewerName: "Casey Patel",
+      approvalStatus: "Approved",
+      financeEmail: "finance@example.com",
+      comments: "Insurance received.",
+    }),
+  });
+  assert.equal(response.status, 503);
+  assert.match((await response.json()).error, /email is not configured/i);
+  const reviews = await fetch(`${fixture.baseUrl}/api/purchasing/reviews`, { headers: fixture.headers });
+  const [savedReview] = await reviews.json();
+  assert.equal(savedReview.approvalStatus, "Approved");
+  assert.equal(savedReview.notificationSentAt, null);
 });
 
 test("stores purchasing templates and named supplier documents for existing contractors", async () => {
@@ -325,7 +492,9 @@ test("stores purchasing templates and named supplier documents for existing cont
     contractorName: contractor.name,
     reviewerName: "Jordan Lee",
     approvalStatus: "Not approved",
+    financeEmail: "",
     comments: "Please update the quotation.",
+    notificationSentAt: null,
     updatedAt: (await fixture.app.locals.database.prepare(
       "SELECT updated_at FROM purchasing_reviews WHERE contractor_id = ?",
     ).get(contractor.id)).updated_at,
