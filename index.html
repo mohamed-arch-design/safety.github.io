@@ -59,6 +59,14 @@
           <a class="nav-link" href="#projects"><svg class="icon"><use href="#i-briefcase"/></svg><span>Projects</span></a>
           <a class="nav-link" href="#documents"><svg class="icon"><use href="#i-file"/></svg><span>Documents</span><span class="nav-dot"></span></a>
           <a class="nav-link" href="#permit-submission"><svg class="icon"><use href="#i-check"/></svg><span>Permits</span></a>
+          <details class="nav-group" open>
+            <summary class="nav-link"><svg class="icon"><use href="#i-briefcase"/></svg><span>Purchasing requirements</span><svg class="icon nav-group-chevron"><use href="#i-chevron"/></svg></summary>
+            <nav class="nav-submenu" aria-label="Purchasing requirements">
+              <a class="nav-sub-link" href="#supply-registration">Supply registration</a>
+              <a class="nav-sub-link" href="#purchasing-quotation">Quotation</a>
+              <a class="nav-sub-link" href="#supplier-documents">Supplier other documents</a>
+            </nav>
+          </details>
         </nav>
 
         <div class="sidebar-bottom">
@@ -184,7 +192,7 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>CONTRACTOR</th><th>SITE</th><th>TRADE</th><th>PROJECT / JOB</th><th>COMPLIANCE</th><th>DOCUMENTS</th><th>ADDED</th><th><span class="sr-only">Actions</span></th></tr></thead>
+                <thead><tr><th>CONTRACTOR</th><th>SITE LOCATION</th><th>TRADE NAME</th><th>PROJECT / JOB</th><th>COMPLIANCE</th><th>DOCUMENTS</th><th>ADDED</th><th><span class="sr-only">Actions</span></th></tr></thead>
                 <tbody id="contractor-rows"></tbody>
               </table>
               <div class="empty-state" id="empty-state" hidden><span class="empty-icon"><svg class="icon"><use href="#i-search"/></svg></span><strong>No contractors found</strong><span>Try adjusting your search or filters.</span></div>
@@ -233,6 +241,8 @@
             <form class="document-form" id="document-form">
               <label class="form-field"><span>Contractor name</span><input id="document-contractor-name" name="contractorName" type="text" list="contractor-suggestions" maxlength="80" placeholder="Type contractor name" autocomplete="off" required /><datalist id="contractor-suggestions"></datalist></label>
               <label class="form-field"><span>Area / location</span><input name="areaLocation" type="text" maxlength="120" placeholder="e.g. North plant, roof area" required /></label>
+              <label class="form-field"><span>Trade name</span><input name="trade" type="text" list="trade-suggestions" maxlength="80" placeholder="e.g. Electrical contractor" autocomplete="off" required /></label>
+              <label class="form-field"><span>Site location</span><select name="site" required><option value="" disabled selected>Select a site</option><option>Tricel Weston</option><option>Tricel Killarney</option><option>Tricel Gloucester</option></select></label>
               <fieldset class="project-owner-fields">
                 <legend>Project owner</legend>
                 <label class="form-field"><span>Name</span><input name="projectOwnerName" type="text" maxlength="80" placeholder="Project owner name" required /></label>
@@ -281,6 +291,80 @@
             <div class="document-list" id="document-list" aria-live="polite"><div class="document-empty">Loading submissions…</div></div>
           </section>
 
+          <h2 class="purchasing-divider" id="purchasing-heading">Purchasing Requirements</h2>
+          <section class="panel purchasing-panel" id="purchasing-requirements" aria-labelledby="purchasing-heading">
+            <p class="documents-note">Select an existing contractor to view their details and latest insurance. Download the blank registration form for suppliers, then upload completed forms, quotations, or other named documents.</p>
+            <label class="form-field purchasing-contractor-select"><span>Contractor</span><select id="purchasing-contractor" required><option value="">Select a contractor</option></select></label>
+            <section class="purchasing-contractor-card" id="purchasing-contractor-details" aria-live="polite">
+              <p>Select a contractor to see their profile and insurance documents.</p>
+            </section>
+            <div class="purchasing-sections">
+              <section class="purchasing-section" id="supply-registration">
+                <h3>Supply registration form</h3>
+                <p>Upload the blank form here. Project owners can download it, ask the supplier to complete it, and upload the returned form below.</p>
+                <form class="purchasing-upload-form" id="supply-template-form">
+                  <label class="form-field"><span>Blank supply registration form (PDF, JPG, or PNG; max 10 MB)</span><input name="template" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+                  <button class="button button-secondary" type="submit" id="save-supply-template">Upload / replace blank form</button>
+                </form>
+                <div class="purchasing-template-link" id="supply-template-link" aria-live="polite">No blank form has been uploaded yet.</div>
+                <form class="purchasing-upload-form purchasing-document-form" data-purchasing-type="registration">
+                  <input type="hidden" name="type" value="registration" />
+                  <input type="hidden" name="documentName" value="Completed supply registration form" />
+                  <label class="form-field"><span>Completed form (PDF, JPG, or PNG; max 10 MB)</span><input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+                  <button class="button button-primary" type="submit">Upload completed form</button>
+                </form>
+              </section>
+              <section class="purchasing-section" id="purchasing-quotation">
+                <h3>Quotation</h3>
+                <form class="purchasing-upload-form purchasing-document-form" data-purchasing-type="quotation">
+                  <input type="hidden" name="type" value="quotation" />
+                  <label class="form-field"><span>Quotation name / reference</span><input name="documentName" type="text" maxlength="120" placeholder="e.g. Plant room upgrade quote" required /></label>
+                  <label class="form-field"><span>Quotation file (PDF, JPG, or PNG; max 10 MB)</span><input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+                  <button class="button button-primary" type="submit">Upload quotation</button>
+                </form>
+              </section>
+              <section class="purchasing-section" id="supplier-documents">
+                <h3>Supplier other documents</h3>
+                <form class="purchasing-upload-form purchasing-document-form" id="supplier-other-documents-form" data-purchasing-type="other">
+                  <div id="supplier-other-document-entries">
+                    <fieldset class="supplier-document-entry" data-supplier-document-index="0">
+                      <legend>Supplier document 1</legend>
+                      <label class="form-field"><span>Document name</span><input name="documentName_0" type="text" maxlength="120" placeholder="e.g. Product specification" required /></label>
+                      <label class="form-field"><span>Document file (PDF, JPG, or PNG; max 10 MB)</span><input name="file_0" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+                    </fieldset>
+                  </div>
+                  <button class="button button-secondary" id="add-supplier-document" type="button"><svg class="icon"><use href="#i-plus"/></svg>Add another document</button>
+                  <button class="button button-primary" id="upload-supplier-documents" type="submit">Upload supplier documents</button>
+                </form>
+              </section>
+            </div>
+            <div class="purchasing-document-list" id="purchasing-document-list" aria-live="polite"></div>
+            <section class="purchasing-review" aria-labelledby="purchasing-review-title">
+              <h3 id="purchasing-review-title">Purchasing team review</h3>
+              <p>Record the purchasing decision and reviewer for the selected contractor.</p>
+              <form id="purchasing-review-form">
+                <label class="form-field"><span>Reviewer name</span><input name="reviewerName" type="text" maxlength="80" placeholder="Purchasing reviewer name" required /></label>
+                <label class="form-field"><span>Approved by purchasing?</span><select name="approvalStatus" required><option value="">Select yes or no</option><option value="Approved">Yes — approved</option><option value="Not approved">No — not approved</option></select></label>
+                <label class="form-field purchasing-review-comment"><span>Comments</span><textarea name="comments" maxlength="2000" placeholder="Add purchasing review comments"></textarea></label>
+                <button class="button button-primary" id="save-purchasing-review" type="submit" disabled>Save purchasing review</button>
+                <span class="purchasing-review-updated" id="purchasing-review-updated"></span>
+              </form>
+            </section>
+            <section class="purchasing-review" aria-labelledby="finance-review-title">
+              <h3 id="finance-review-title">Finance insurance verification</h3>
+              <p>Assign a finance reviewer to verify the selected contractor’s insurance, notify them by email, and record their decision.</p>
+              <form id="finance-review-form">
+                <label class="form-field"><span>Finance reviewer name</span><input name="financeName" type="text" maxlength="80" placeholder="Finance reviewer name" required /></label>
+                <label class="form-field"><span>Finance reviewer email</span><input name="financeEmail" type="email" maxlength="120" placeholder="name@example.com" required /></label>
+                <label class="form-field"><span>Insurance approved by finance?</span><select name="approvalStatus" required><option value="Pending">Pending finance review</option><option value="Approved">Yes — approved</option><option value="Not approved">No — not approved</option></select></label>
+                <label class="form-field purchasing-review-comment"><span>Finance comments</span><textarea name="comments" maxlength="2000" placeholder="Add finance review comments"></textarea></label>
+                <button class="button button-primary" type="submit" disabled>Save finance review</button>
+                <a class="button button-secondary" id="finance-review-notify" hidden>Email finance reviewer</a>
+                <span class="purchasing-review-updated" id="finance-review-updated"></span>
+              </form>
+            </section>
+          </section>
+
           <footer class="page-footer"><span>© 2026 Tricel</span><span><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="mailto:support@tricel.example">Help & support</a></span></footer>
         </div>
       </main>
@@ -294,7 +378,7 @@
         <label class="form-field"><span>Full name</span><input name="name" type="text" placeholder="e.g. Alex Morgan" required maxlength="80" /></label>
         <label class="form-field"><span>Email address</span><input name="email" type="email" placeholder="alex@company.com" required maxlength="120" /></label>
         <div class="form-row">
-          <label class="form-field"><span>Trade</span><select name="trade" required><option value="" disabled selected>Select trade</option><option>General contractor</option><option>Electrical</option><option>Plumbing</option><option>Carpentry</option><option>HVAC</option><option>Painting</option><option>Roofing</option><option>Concrete</option><option>Other</option></select></label>
+          <label class="form-field"><span>Trade name</span><input name="trade" type="text" list="trade-suggestions" placeholder="e.g. Electrical contractor" autocomplete="off" required maxlength="80" /><datalist id="trade-suggestions"><option>General contractor</option><option>Electrical</option><option>Plumbing</option><option>Carpentry</option><option>HVAC</option><option>Painting</option><option>Roofing</option><option>Concrete</option></datalist></label>
           <label class="form-field"><span>Project / job</span><input name="project" type="text" placeholder="e.g. North plant maintenance" required maxlength="120" /></label>
         </div>
         <label class="form-field"><span>Site location</span><select name="site" required><option value="" disabled selected>Select a site</option><option>Tricel Weston</option><option>Tricel Killarney</option><option>Tricel Gloucester</option></select></label>
