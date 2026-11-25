@@ -357,10 +357,8 @@
               <p id="finance-review-stage-note">Finance decisions unlock after Purchasing approval. Email addresses and comments are saved only; no emails are sent.</p>
               <form id="finance-review-form">
                 <label class="form-field"><span>Finance reviewer name</span><input name="financeName" type="text" maxlength="80" placeholder="Finance reviewer name" required /></label>
-                <label class="form-field"><span>Assigned Finance email</span><input name="financeEmail" type="email" maxlength="120" placeholder="Set by Purchasing" readonly /></label>
                 <label class="form-field"><span>Insurance approved by finance?</span><select name="approvalStatus" required><option value="Pending">Pending finance review</option><option value="Approved">Yes — approved</option><option value="Not approved">No — not approved</option></select></label>
                 <label class="form-field" id="health-safety-email-field" hidden><span>Health &amp; Safety email address (saved only)</span><input name="healthSafetyEmail" type="email" maxlength="120" placeholder="health.safety@example.com" /></label>
-                <label class="form-field" id="project-engineer-email-field" hidden><span>Project Engineer email address (saved only)</span><input name="projectEngineerEmail" type="email" maxlength="120" placeholder="engineer@example.com" /></label>
                 <label class="form-field" id="project-owner-email-field" hidden><span>Project Owner email address (saved only)</span><input name="projectOwnerEmail" type="email" maxlength="120" placeholder="owner@example.com" /></label>
                 <label class="form-field purchasing-review-comment"><span id="finance-comments-label">Finance comments</span><textarea name="comments" maxlength="2000" placeholder="Add finance review comments"></textarea></label>
                 <button class="button button-primary" type="submit" disabled>Save finance review</button>

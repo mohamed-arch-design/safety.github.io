@@ -70,10 +70,11 @@ documents with a document name; add multiple supplier documents as needed. Each
 file is stored against the selected contractor. The purchasing team can record
 a named reviewer, an approved / not-approved decision, and comments for each
 contractor. The review forms save the Finance, Health & Safety,
-Project Engineer, and Project Owner email addresses, decisions, and comments for
-reference. When Purchasing selects Not approved, the form asks for a Project
-Owner email address and saves it with the review. This is currently a
-record-keeping interface only; it does not send email notifications.
+and Project Owner email addresses, decisions, and comments for reference. On
+Finance approval, Health & Safety and Project Owner email fields are shown; on
+rejection, only the Project Owner email field is shown. When Purchasing selects
+Not approved, that form also asks for a Project Owner email address. These are
+saved-only fields; this interface does not send email notifications.
 
 Uploads accept PDF, JPG, and PNG files up to 10 MB, and the server checks the
 file signature before storing them. Downloads and API endpoints require the

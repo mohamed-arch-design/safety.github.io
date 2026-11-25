@@ -145,11 +145,12 @@ test("requires authentication and persists new contractors", async () => {
   assert.match(homepageHtml, /<th>SITE LOCATION<\/th><th>TRADE NAME<\/th>/);
   assert.equal(homepageHtml.match(/name="trade" type="text" list="trade-suggestions"/g)?.length, 2);
   assert.match(homepageHtml, /id="finance-review-form"/);
-  assert.match(homepageHtml, /name="financeEmail" type="email"/);
   assert.match(homepageHtml, /id="health-safety-email-field"/);
-  assert.match(homepageHtml, /id="project-engineer-email-field"/);
   assert.match(homepageHtml, /id="project-owner-email-field"/);
   assert.match(homepageHtml, /id="purchasing-project-owner-email-field"/);
+  const financeForm = homepageHtml.match(/<form id="finance-review-form">([\s\S]*?)<\/form>/)?.[1];
+  assert.ok(financeForm);
+  assert.doesNotMatch(financeForm, /name="financeEmail"|projectEngineerEmail/);
   assert.equal(homepageHtml.match(/name="site" required/g)?.length, 2);
   for (const site of ["Tricel Weston", "Tricel Killarney", "Tricel Gloucester"]) {
     assert.match(homepageHtml, new RegExp(`<option>${site}</option>`));
@@ -232,11 +233,10 @@ test("saves staged purchasing and finance review details without sending email",
     headers: { ...fixture.headers, "Content-Type": "application/json" },
     body: JSON.stringify({
       financeName: "Jordan Lee",
-      financeEmail: "jordan@example.com",
       approvalStatus: "Approved",
       comments: "Insurance policy verified.",
       healthSafetyEmail: "safety@example.com",
-      projectEngineerEmail: "engineer@example.com",
+      projectOwnerEmail: "owner@example.com",
     }),
   });
   assert.equal(prematureDecision.status, 409);
@@ -275,7 +275,6 @@ test("saves staged purchasing and finance review details without sending email",
     headers: { ...fixture.headers, "Content-Type": "application/json" },
     body: JSON.stringify({
       financeName: "Jordan Lee",
-      financeEmail: "finance@example.com",
       approvalStatus: "Approved",
       comments: "Insurance is approved.",
     }),
@@ -287,10 +286,9 @@ test("saves staged purchasing and finance review details without sending email",
     headers: { ...fixture.headers, "Content-Type": "application/json" },
     body: JSON.stringify({
       financeName: "Jordan Lee",
-      financeEmail: "finance@example.com",
       approvalStatus: "Approved",
       healthSafetyEmail: "safety@example.com",
-      projectEngineerEmail: "engineer@example.com",
+      projectOwnerEmail: "owner@example.com",
       comments: "Insurance is approved.",
     }),
   });
@@ -298,7 +296,7 @@ test("saves staged purchasing and finance review details without sending email",
   const savedFinanceReview = await financeApproval.json();
   assert.equal(savedFinanceReview.approvalStatus, "Approved");
   assert.equal(savedFinanceReview.healthSafetyEmail, "safety@example.com");
-  assert.equal(savedFinanceReview.projectEngineerEmail, "engineer@example.com");
+  assert.equal(savedFinanceReview.projectOwnerEmail, "owner@example.com");
   assert.equal(savedFinanceReview.comments, "Insurance is approved.");
   assert.equal("approvalNotificationSentAt" in savedFinanceReview, false);
 
@@ -307,7 +305,6 @@ test("saves staged purchasing and finance review details without sending email",
     headers: { ...fixture.headers, "Content-Type": "application/json" },
     body: JSON.stringify({
       financeName: "Jordan Lee",
-      financeEmail: "finance@example.com",
       approvalStatus: "Not approved",
       projectOwnerEmail: "owner@example.com",
       comments: "The policy does not cover the required work.",

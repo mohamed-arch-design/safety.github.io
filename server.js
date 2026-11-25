@@ -166,9 +166,7 @@ function financeReviewFromRow(row) {
     contractorId: row.contractor_id,
     contractorName: row.contractor_name,
     financeName: row.finance_name,
-    financeEmail: row.finance_email,
     healthSafetyEmail: row.health_safety_email,
-    projectEngineerEmail: row.project_engineer_email,
     projectOwnerEmail: row.project_owner_email,
     approvalStatus: row.approval_status,
     comments: row.comments,
@@ -343,7 +341,6 @@ export function createApp({
       finance_email TEXT NOT NULL,
       approval_status TEXT NOT NULL CHECK (approval_status IN ('Pending', 'Approved', 'Not approved')),
       health_safety_email TEXT NOT NULL DEFAULT '',
-      project_engineer_email TEXT NOT NULL DEFAULT '',
       project_owner_email TEXT NOT NULL DEFAULT '',
       comments TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL
@@ -364,7 +361,6 @@ export function createApp({
   const financeReviewColumns = new Set(db.prepare("PRAGMA table_info(finance_reviews)").all().map(({ name }) => name));
   const financeReviewMigrations = [
     ["health_safety_email", "TEXT NOT NULL DEFAULT ''"],
-    ["project_engineer_email", "TEXT NOT NULL DEFAULT ''"],
     ["project_owner_email", "TEXT NOT NULL DEFAULT ''"],
   ];
   for (const [name, definition] of financeReviewMigrations) {
@@ -762,21 +758,14 @@ export function createApp({
         throw new HttpError(400, "Select a valid finance insurance verification status.");
       }
       const financeName = validateText(req.body?.financeName, "Finance reviewer name", 80);
-      const financeEmail = approvalStatus === "Pending" && !req.body?.financeEmail
-        ? ""
-        : validateEmail(req.body?.financeEmail, "Finance reviewer email address");
       const healthSafetyEmail = approvalStatus === "Approved"
         ? validateEmail(req.body?.healthSafetyEmail, "Health & Safety email address")
         : validateOptionalText(req.body?.healthSafetyEmail, "Health & Safety email address", 120);
-      const projectEngineerEmail = approvalStatus === "Approved"
-        ? validateEmail(req.body?.projectEngineerEmail, "Project Engineer email address")
-        : validateOptionalText(req.body?.projectEngineerEmail, "Project Engineer email address", 120);
-      const projectOwnerEmail = approvalStatus === "Not approved"
+      const projectOwnerEmail = approvalStatus === "Approved" || approvalStatus === "Not approved"
         ? validateEmail(req.body?.projectOwnerEmail, "Project Owner email address")
         : validateOptionalText(req.body?.projectOwnerEmail, "Project Owner email address", 120);
       for (const [email, label] of [
         [healthSafetyEmail, "Health & Safety"],
-        [projectEngineerEmail, "Project Engineer"],
         [projectOwnerEmail, "Project Owner"],
       ]) {
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -796,29 +785,25 @@ export function createApp({
       if (approvalStatus !== "Pending" && purchasingReview?.approval_status !== "Approved") {
         throw new HttpError(409, "Purchasing must approve before Finance can record a decision.");
       }
-      if (approvalStatus !== "Pending" && purchasingReview?.finance_email
-        && financeEmail.toLowerCase() !== purchasingReview.finance_email.toLowerCase()) {
-        throw new HttpError(400, "Use the Finance email address assigned by Purchasing.");
-      }
+      const financeEmail = purchasingReview?.finance_email || "";
       const updatedAt = new Date().toISOString();
       db.prepare(`
         INSERT INTO finance_reviews (
           contractor_id, finance_name, finance_email, approval_status,
-          health_safety_email, project_engineer_email, project_owner_email, comments, updated_at
+          health_safety_email, project_owner_email, comments, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(contractor_id) DO UPDATE SET
           finance_name = excluded.finance_name,
           finance_email = excluded.finance_email,
           approval_status = excluded.approval_status,
           health_safety_email = excluded.health_safety_email,
-          project_engineer_email = excluded.project_engineer_email,
           project_owner_email = excluded.project_owner_email,
           comments = excluded.comments,
           updated_at = excluded.updated_at
       `).run(
         contractorId, financeName, financeEmail, approvalStatus,
-        healthSafetyEmail, projectEngineerEmail, projectOwnerEmail, comments, updatedAt,
+        healthSafetyEmail, projectOwnerEmail, comments, updatedAt,
       );
       const record = db.prepare(`
         SELECT finance_reviews.*, contractors.name AS contractor_name

@@ -490,7 +490,6 @@ function renderFinanceWorkflowFields() {
   );
   const canDecide = purchasingReview?.approvalStatus === "Approved";
   const status = form.querySelector('[name="approvalStatus"]');
-  form.querySelector('[name="financeEmail"]').required = canDecide;
   for (const option of status.options) {
     if (option.value !== "Pending") option.disabled = !canDecide;
   }
@@ -499,8 +498,7 @@ function renderFinanceWorkflowFields() {
   const isRejected = canDecide && status.value === "Not approved";
   const conditionalFields = [
     ["#health-safety-email-field", "healthSafetyEmail", isApproved],
-    ["#project-engineer-email-field", "projectEngineerEmail", isApproved],
-    ["#project-owner-email-field", "projectOwnerEmail", isRejected],
+    ["#project-owner-email-field", "projectOwnerEmail", isApproved || isRejected],
   ];
   for (const [selector, name, visible] of conditionalFields) {
     const field = form.querySelector(selector);
@@ -523,13 +521,10 @@ function renderFinanceWorkflowFields() {
 function renderFinanceReview() {
   const contractorId = document.querySelector("#purchasing-contractor").value;
   const review = financeReviews.find(({ contractorId: id }) => id === contractorId);
-  const purchasingReview = purchasingReviews.find(({ contractorId: id }) => id === contractorId);
   const form = document.querySelector("#finance-review-form");
   form.querySelector('[name="financeName"]').value = review?.financeName || "";
-  form.querySelector('[name="financeEmail"]').value = purchasingReview?.financeEmail || review?.financeEmail || "";
   form.querySelector('[name="approvalStatus"]').value = review?.approvalStatus || "Pending";
   form.querySelector('[name="healthSafetyEmail"]').value = review?.healthSafetyEmail || "";
-  form.querySelector('[name="projectEngineerEmail"]').value = review?.projectEngineerEmail || "";
   form.querySelector('[name="projectOwnerEmail"]').value = review?.projectOwnerEmail || "";
   form.querySelector('[name="comments"]').value = review?.comments || "";
   form.querySelector('[type="submit"]').disabled = !contractorId;
