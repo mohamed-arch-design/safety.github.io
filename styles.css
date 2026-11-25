@@ -435,6 +435,18 @@ tbody tr:hover { background: #fcfdfb; }
 #purchasing-review-form .purchasing-review-comment, #finance-review-form .purchasing-review-comment { grid-column: 1 / -1; }
 #purchasing-review-form textarea, #finance-review-form textarea { min-height: 64px; }
 #purchasing-review-form .button, #finance-review-form .button { justify-self: start; align-self: start; margin-bottom: 12px; }
+#induction-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
+#induction-form .form-field { min-width: 0; }
+#induction-form .button { justify-self: start; align-self: start; margin-bottom: 12px; }
+.induction-date-fields { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; padding: 8px 10px 0; margin: 0 0 12px; border: 1px solid #e8ebe7; border-radius: 7px; }
+.induction-date-fields legend { padding: 0 5px; color: #435047; font-size: 9px; font-weight: 700; }
+.induction-date-fields[hidden] { display: none; }
+.induction-register-list { max-width: 100%; padding-top: 12px; border-top: 1px solid #eff0ee; }
+.induction-table-wrap { max-width: 100%; overflow-x: auto; }
+.induction-table { width: 100%; min-width: 760px; border-collapse: collapse; text-align: left; }
+.induction-table th { padding: 8px; color: #87918a; border-bottom: 1px solid #e9ede9; font-size: 8px; letter-spacing: .04em; }
+.induction-table td { padding: 9px 8px; color: #59645d; border-bottom: 1px solid #f0f1ef; font-size: 9px; }
+#induction-form [disabled] { cursor: not-allowed; opacity: .65; }
 #purchasing-finance-email-field[hidden],
 #purchasing-project-owner-email-field[hidden],
 #health-safety-email-field[hidden],
@@ -594,8 +606,9 @@ tbody tr:hover { background: #fcfdfb; }
   .purchasing-sections { grid-template-columns: 1fr; }
   .purchasing-section > p { min-height: 0; }
   .purchasing-profile-facts { grid-template-columns: 1fr; gap: 8px; }
-  #purchasing-review-form, #finance-review-form { grid-template-columns: 1fr; }
+  #purchasing-review-form, #finance-review-form, #induction-form { grid-template-columns: 1fr; }
   #purchasing-review-form .purchasing-review-comment, #finance-review-form .purchasing-review-comment { grid-column: auto; }
+  .induction-date-fields { grid-template-columns: 1fr; }
   .project-owner-fields { grid-template-columns: 1fr; }
   .permit-responsibility-fields { grid-template-columns: 1fr; }
   .upload-requirements { grid-column: auto; grid-template-columns: 1fr; }

@@ -31,6 +31,7 @@ let purchasingDocuments = [];
 let purchasingTemplate = null;
 let purchasingReviews = [];
 let financeReviews = [];
+let inductions = [];
 let nextSupplierDocumentIndex = 1;
 let toastTimer;
 
@@ -437,6 +438,7 @@ function renderPurchasing() {
 
   renderPurchasingReview();
   renderFinanceReview();
+  renderInductionRegister();
   const list = document.querySelector("#purchasing-document-list");
   if (!purchasingDocuments.length) {
     list.innerHTML = '<div class="document-empty">Uploaded purchasing documents will appear here.</div>';
@@ -521,6 +523,71 @@ function renderFinanceReview() {
     ? `Last saved ${new Date(review.updatedAt).toLocaleDateString()}`
     : "";
   renderFinanceWorkflowFields();
+}
+
+function renderInductionRegister() {
+  const contractorId = document.querySelector("#purchasing-contractor").value;
+  const form = document.querySelector("#induction-form");
+  const crewSelect = form.querySelector('[name="crewName"]');
+  const previousCrew = crewSelect.value;
+  const crewMembers = inductions.filter(({ contractorId: id }) => id === contractorId);
+  crewSelect.innerHTML = '<option value="">Select a crew member</option>' + crewMembers.map(({ crewName }) =>
+    `<option value="${escapeHtml(crewName)}">${escapeHtml(crewName)}</option>`
+  ).join("");
+  crewSelect.value = crewMembers.some(({ crewName }) => crewName === previousCrew)
+    ? previousCrew
+    : crewMembers[0]?.crewName || "";
+  const selectedMember = crewMembers.find(({ crewName }) => crewName === crewSelect.value);
+  form.querySelector('[name="healthSafetyOfficer"]').value = selectedMember?.healthSafetyOfficer || "";
+  form.querySelector('[name="inductionCompleted"]').value = selectedMember
+    ? selectedMember.inductionCompleted ? "Yes" : "No"
+    : "";
+  form.querySelector('[name="inductionDate"]').value = selectedMember?.inductionDate || "";
+  form.querySelector('[name="expiryDate"]').value = selectedMember?.expiryDate || "";
+  form.querySelector('[name="facilitiesWelfareExplained"]').value = selectedMember
+    ? selectedMember.facilitiesWelfareExplained ? "Yes" : "No"
+    : "";
+  form.querySelector('[name="fireAssemblyPointExplained"]').value = selectedMember
+    ? selectedMember.fireAssemblyPointExplained ? "Yes" : "No"
+    : "";
+  syncInductionFields();
+  crewSelect.disabled = !contractorId || !crewMembers.length;
+  form.querySelectorAll("select:not([name=\"crewName\"]), input").forEach((input) => {
+    input.disabled = !selectedMember;
+  });
+  form.querySelector('[type="submit"]').disabled = !selectedMember;
+
+  const register = document.querySelector("#induction-register-list");
+  if (!inductions.length) {
+    register.innerHTML = '<div class="document-empty">Crew members will appear here after contractor documents and certifications are submitted.</div>';
+    return;
+  }
+  register.innerHTML = `<div class="induction-table-wrap"><table class="induction-table">
+    <thead><tr><th>Contractor</th><th>Crew member</th><th>H&amp;S officer</th><th>Induction date</th><th>Expiry / status</th><th>Facilities &amp; welfare</th><th>Fire assembly point</th></tr></thead>
+    <tbody>${inductions.map((member) => {
+      const expiry = member.inductionCompleted
+        ? getExpiryStatus(member.expiryDate)
+        : { text: "Not completed", className: "expiry-expired" };
+      return `<tr>
+        <td>${escapeHtml(member.contractorName)}</td>
+        <td>${escapeHtml(member.crewName)}</td>
+        <td>${escapeHtml(member.healthSafetyOfficer || "—")}</td>
+        <td>${escapeHtml(member.inductionDate || "—")}</td>
+        <td><span class="expiry-status ${expiry.className}">${escapeHtml(expiry.text)}</span></td>
+        <td>${member.facilitiesWelfareExplained ? "Yes" : "No"}</td>
+        <td>${member.fireAssemblyPointExplained ? "Yes" : "No"}</td>
+      </tr>`;
+    }).join("")}</tbody>
+  </table></div>`;
+}
+
+function syncInductionFields() {
+  const form = document.querySelector("#induction-form");
+  const completed = form.querySelector('[name="inductionCompleted"]').value === "Yes";
+  form.querySelector("#induction-dates-field").hidden = !completed;
+  form.querySelector('[name="healthSafetyOfficer"]').required = completed;
+  form.querySelector('[name="inductionDate"]').required = completed;
+  form.querySelector('[name="expiryDate"]').required = completed;
 }
 
 function addSupplierDocumentEntry() {
@@ -726,7 +793,7 @@ function createPermitSubmission() {
 }
 
 async function loadData() {
-  const [contractorData, documentData, permitData, purchasingDocumentData, templateData, purchasingReviewData, financeReviewData] = await Promise.all([
+  const [contractorData, documentData, permitData, purchasingDocumentData, templateData, purchasingReviewData, financeReviewData, inductionData] = await Promise.all([
     apiRequest("/api/contractors"),
     apiRequest("/api/documents"),
     apiRequest("/api/permits"),
@@ -734,6 +801,7 @@ async function loadData() {
     apiRequest("/api/purchasing/template"),
     apiRequest("/api/purchasing/reviews"),
     apiRequest("/api/finance/reviews"),
+    apiRequest("/api/inductions"),
   ]);
   contractors.splice(0, contractors.length, ...contractorData);
   documents = documentData;
@@ -742,6 +810,7 @@ async function loadData() {
   purchasingTemplate = templateData;
   purchasingReviews = purchasingReviewData;
   financeReviews = financeReviewData;
+  inductions = inductionData;
   renderContractorOptions();
   renderContractors();
   renderDocuments();
@@ -752,6 +821,8 @@ contractorSearch.addEventListener("input", renderContractors);
 statusFilter.addEventListener("change", renderContractors);
 document.querySelector("#approved-site-filter").addEventListener("change", renderApprovedContractors);
 document.querySelector("#purchasing-contractor").addEventListener("change", renderPurchasing);
+document.querySelector("#induction-form [name=\"crewName\"]").addEventListener("change", renderInductionRegister);
+document.querySelector("#induction-form [name=\"inductionCompleted\"]").addEventListener("change", syncInductionFields);
 document.querySelector("#purchasing-review-form [name=\"approvalStatus\"]")
   .addEventListener("change", renderPurchasingApprovalFields);
 document.querySelector("#finance-review-form [name=\"approvalStatus\"]")
@@ -1033,6 +1104,45 @@ document.querySelector("#finance-review-form").addEventListener("submit", async 
     showToast(error.message);
   } finally {
     submitButton.disabled = !document.querySelector("#purchasing-contractor").value;
+  }
+});
+
+document.querySelector("#induction-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const contractorId = document.querySelector("#purchasing-contractor").value;
+  const submitButton = form.querySelector('[type="submit"]');
+  if (!contractorId || !form.querySelector('[name="crewName"]').value) {
+    showToast("Select a contractor and crew member before saving an induction.");
+    return;
+  }
+  submitButton.disabled = true;
+  try {
+    const formData = new FormData(form);
+    const induction = await apiRequest(`/api/inductions/${encodeURIComponent(contractorId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        crewName: formData.get("crewName"),
+        healthSafetyOfficer: formData.get("healthSafetyOfficer"),
+        inductionCompleted: formData.get("inductionCompleted") === "Yes",
+        inductionDate: formData.get("inductionDate"),
+        expiryDate: formData.get("expiryDate"),
+        facilitiesWelfareExplained: formData.get("facilitiesWelfareExplained") === "Yes",
+        fireAssemblyPointExplained: formData.get("fireAssemblyPointExplained") === "Yes",
+      }),
+    });
+    const index = inductions.findIndex(({ contractorId: id, crewName }) =>
+      id === induction.contractorId && crewName.toLowerCase() === induction.crewName.toLowerCase(),
+    );
+    if (index >= 0) inductions[index] = induction;
+    else inductions.push(induction);
+    renderInductionRegister();
+    showToast("Induction register updated.");
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    submitButton.disabled = !form.querySelector('[name="crewName"]').value;
   }
 });
 

@@ -148,6 +148,9 @@ test("requires authentication and persists new contractors", async () => {
   assert.match(homepageHtml, /id="health-safety-email-field"/);
   assert.match(homepageHtml, /id="project-owner-email-field"/);
   assert.match(homepageHtml, /id="purchasing-project-owner-email-field"/);
+  assert.match(homepageHtml, /id="induction-form"/);
+  assert.match(homepageHtml, /name="facilitiesWelfareExplained"/);
+  assert.match(homepageHtml, /name="fireAssemblyPointExplained"/);
   const financeForm = homepageHtml.match(/<form id="finance-review-form">([\s\S]*?)<\/form>/)?.[1];
   assert.ok(financeForm);
   assert.doesNotMatch(financeForm, /name="financeEmail"|projectEngineerEmail/);
@@ -317,6 +320,104 @@ test("saves purchasing and finance review details without sending email", async 
 
   const persisted = await fetch(reviewsUrl, { headers: fixture.headers });
   assert.deepEqual(await persisted.json(), [savedRejection]);
+});
+
+test("registers contractor crew inductions and expiry dates", async () => {
+  const fixture = await createFixture();
+  const submission = await fetch(`${fixture.baseUrl}/api/documents`, {
+    method: "POST",
+    headers: fixture.headers,
+    body: documentBundle(),
+  });
+  assert.equal(submission.status, 201);
+  const contractorList = await fetch(`${fixture.baseUrl}/api/contractors`, {
+    headers: fixture.headers,
+  });
+  const [contractor] = await contractorList.json();
+
+  const registerUrl = `${fixture.baseUrl}/api/inductions`;
+  const initialRegister = await fetch(registerUrl, { headers: fixture.headers });
+  assert.equal(initialRegister.status, 200);
+  const crew = await initialRegister.json();
+  assert.equal(crew.length, 2);
+  assert.deepEqual(crew.map(({ crewName, contractorName, inductionCompleted }) =>
+    [crewName, contractorName, inductionCompleted]), [
+    ["Crew Alpha", contractor.name, false],
+    ["Crew Beta", contractor.name, false],
+  ]);
+
+  const saveUrl = `${registerUrl}/${contractor.id}`;
+  const invalidDateRange = await fetch(saveUrl, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      crewName: "Crew Alpha",
+      healthSafetyOfficer: "Casey Patel",
+      inductionCompleted: true,
+      inductionDate: "2027-06-15",
+      expiryDate: "2027-06-14",
+      facilitiesWelfareExplained: true,
+      fireAssemblyPointExplained: true,
+    }),
+  });
+  assert.equal(invalidDateRange.status, 400);
+  assert.match((await invalidDateRange.json()).error, /on or after/i);
+
+  const saved = await fetch(saveUrl, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      crewName: "Crew Alpha",
+      healthSafetyOfficer: "Casey Patel",
+      inductionCompleted: true,
+      inductionDate: "2027-06-15",
+      expiryDate: "2028-06-15",
+      facilitiesWelfareExplained: true,
+      fireAssemblyPointExplained: false,
+    }),
+  });
+  assert.equal(saved.status, 200);
+  const savedRecord = await saved.json();
+  assert.equal(savedRecord.contractorName, contractor.name);
+  assert.equal(savedRecord.crewName, "Crew Alpha");
+  assert.equal(savedRecord.healthSafetyOfficer, "Casey Patel");
+  assert.equal(savedRecord.inductionDate, "2027-06-15");
+  assert.equal(savedRecord.expiryDate, "2028-06-15");
+  assert.equal(savedRecord.facilitiesWelfareExplained, true);
+  assert.equal(savedRecord.fireAssemblyPointExplained, false);
+
+  const unknownCrew = await fetch(saveUrl, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      crewName: "Not on contractor roster",
+      inductionCompleted: false,
+      facilitiesWelfareExplained: false,
+      fireAssemblyPointExplained: false,
+    }),
+  });
+  assert.equal(unknownCrew.status, 400);
+
+  const pendingInduction = await fetch(saveUrl, {
+    method: "PUT",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      crewName: "Crew Beta",
+      inductionCompleted: false,
+      facilitiesWelfareExplained: false,
+      fireAssemblyPointExplained: false,
+    }),
+  });
+  assert.equal(pendingInduction.status, 200);
+  assert.equal((await pendingInduction.json()).inductionCompleted, false);
+
+  const persistedRegister = await fetch(registerUrl, { headers: fixture.headers });
+  const persistedCrew = await persistedRegister.json();
+  assert.equal(persistedCrew[0].inductionDate, "2027-06-15");
+  assert.equal(persistedCrew[0].healthSafetyOfficer, "Casey Patel");
+  assert.equal(persistedCrew[1].crewName, "Crew Beta");
+  assert.equal(persistedCrew[1].inductionCompleted, false);
+  assert.ok(persistedCrew[1].updatedAt);
 });
 
 test("stores purchasing templates and named supplier documents for existing contractors", async () => {

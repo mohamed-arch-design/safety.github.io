@@ -365,6 +365,27 @@
                 <span class="purchasing-review-updated" id="finance-review-updated"></span>
               </form>
             </section>
+            <section class="purchasing-review induction-review" aria-labelledby="induction-title">
+              <h3 id="induction-title">Health &amp; Safety Induction Register</h3>
+              <p>Select a contractor above. Crew names are populated from their submitted certification records. Record induction dates, expiry, and site briefing confirmations for each crew member.</p>
+              <form id="induction-form">
+                <label class="form-field"><span>Crew member</span><select name="crewName" required disabled><option value="">Select a contractor first</option></select></label>
+                <label class="form-field"><span>Induction completed?</span><select name="inductionCompleted" required><option value="">Select yes or no</option><option value="Yes">Yes</option><option value="No">No</option></select></label>
+                <label class="form-field"><span>Health &amp; Safety officer who conducted induction</span><input name="healthSafetyOfficer" type="text" maxlength="80" placeholder="Officer name" /></label>
+                <fieldset id="induction-dates-field" class="induction-date-fields" hidden>
+                  <legend>Induction dates</legend>
+                  <label class="form-field"><span>Induction date</span><input name="inductionDate" type="date" /></label>
+                  <label class="form-field"><span>Induction expiry date</span><input name="expiryDate" type="date" /></label>
+                </fieldset>
+                <label class="form-field"><span>Facilities and welfare shown?</span><select name="facilitiesWelfareExplained" required><option value="">Select yes or no</option><option value="Yes">Yes</option><option value="No">No</option></select></label>
+                <label class="form-field"><span>Fire assembly point explained?</span><select name="fireAssemblyPointExplained" required><option value="">Select yes or no</option><option value="Yes">Yes</option><option value="No">No</option></select></label>
+                <button class="button button-primary" type="submit" disabled>Save induction record</button>
+                <span class="purchasing-review-updated" id="induction-updated"></span>
+              </form>
+              <div id="induction-register-list" class="induction-register-list" aria-live="polite">
+                <div class="document-empty">Crew members will appear here after contractor documents and certifications are submitted.</div>
+              </div>
+            </section>
           </section>
 
           <footer class="page-footer"><span>© 2026 Tricel</span><span><a href="#privacy">Privacy</a><a href="#terms">Terms</a><a href="mailto:support@tricel.example">Help & support</a></span></footer>

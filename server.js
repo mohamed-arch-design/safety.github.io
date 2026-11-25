@@ -174,6 +174,21 @@ function financeReviewFromRow(row) {
   };
 }
 
+function inductionFromRow(row) {
+  return {
+    contractorId: row.contractor_id,
+    contractorName: row.contractor_name,
+    crewName: row.crew_name,
+    healthSafetyOfficer: row.health_safety_officer || "",
+    inductionCompleted: Boolean(row.induction_completed),
+    inductionDate: row.induction_date || "",
+    expiryDate: row.expiry_date || "",
+    facilitiesWelfareExplained: Boolean(row.facilities_welfare_explained),
+    fireAssemblyPointExplained: Boolean(row.fire_assembly_point_explained),
+    updatedAt: row.updated_at || "",
+  };
+}
+
 function isValidDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split("-").map(Number);
@@ -344,6 +359,18 @@ export function createApp({
       project_owner_email TEXT NOT NULL DEFAULT '',
       comments TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS induction_records (
+      contractor_id TEXT NOT NULL REFERENCES contractors(id),
+      crew_name TEXT NOT NULL,
+      health_safety_officer TEXT NOT NULL DEFAULT '',
+      induction_completed INTEGER NOT NULL DEFAULT 0,
+      induction_date TEXT NOT NULL DEFAULT '',
+      expiry_date TEXT NOT NULL DEFAULT '',
+      facilities_welfare_explained INTEGER NOT NULL DEFAULT 0,
+      fire_assembly_point_explained INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (contractor_id, crew_name)
     );
     DROP INDEX IF EXISTS contractors_email_unique;
     CREATE UNIQUE INDEX contractors_email_unique ON contractors(lower(email)) WHERE email <> '';
@@ -809,6 +836,116 @@ export function createApp({
         WHERE finance_reviews.contractor_id = ?
       `).get(contractorId);
       return res.json(financeReviewFromRow(record));
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get("/api/inductions", (_req, res) => {
+    const records = db.prepare(`
+      SELECT
+        contractors.id AS contractor_id,
+        contractors.name AS contractor_name,
+        crew.crew_name,
+        induction_records.health_safety_officer,
+        induction_records.induction_completed,
+        induction_records.induction_date,
+        induction_records.expiry_date,
+        induction_records.facilities_welfare_explained,
+        induction_records.fire_assembly_point_explained,
+        induction_records.updated_at
+      FROM contractors
+      JOIN (
+        SELECT contractor_id, MIN(trim(crew_name)) AS crew_name
+        FROM documents
+        WHERE type = 'job_certification' AND trim(COALESCE(crew_name, '')) <> ''
+        GROUP BY contractor_id, lower(trim(crew_name))
+      ) AS crew ON crew.contractor_id = contractors.id
+      LEFT JOIN induction_records
+        ON induction_records.contractor_id = contractors.id
+        AND lower(induction_records.crew_name) = lower(crew.crew_name)
+      ORDER BY contractors.name, crew.crew_name
+    `).all();
+    res.json(records.map(inductionFromRow));
+  });
+
+  app.put("/api/inductions/:contractorId", (req, res, next) => {
+    try {
+      const { contractorId } = req.params;
+      const contractor = db.prepare("SELECT id, name FROM contractors WHERE id = ?").get(contractorId);
+      if (!contractor) throw new HttpError(404, "Contractor not found.");
+      const crewName = validateText(req.body?.crewName, "Crew member", 80);
+      const rosterMember = db.prepare(`
+        SELECT MIN(trim(crew_name)) AS crew_name
+        FROM documents
+        WHERE contractor_id = ? AND type = 'job_certification'
+          AND trim(COALESCE(crew_name, '')) <> ''
+        GROUP BY lower(trim(crew_name))
+        HAVING lower(trim(crew_name)) = lower(?)
+      `).get(contractorId, crewName);
+      if (!rosterMember) {
+        throw new HttpError(400, "Select a crew member listed for this contractor.");
+      }
+      const inductionCompleted = req.body?.inductionCompleted;
+      const facilitiesWelfareExplained = req.body?.facilitiesWelfareExplained;
+      const fireAssemblyPointExplained = req.body?.fireAssemblyPointExplained;
+      if ([inductionCompleted, facilitiesWelfareExplained, fireAssemblyPointExplained]
+        .some((answer) => typeof answer !== "boolean")) {
+        throw new HttpError(400, "Answer each induction checklist question.");
+      }
+      const healthSafetyOfficer = inductionCompleted
+        ? validateText(req.body?.healthSafetyOfficer, "Health & Safety officer name", 80)
+        : validateOptionalText(req.body?.healthSafetyOfficer, "Health & Safety officer name", 80);
+      const inductionDate = inductionCompleted
+        ? validateText(req.body?.inductionDate, "Induction date", 10)
+        : "";
+      const expiryDate = inductionCompleted
+        ? validateText(req.body?.expiryDate, "Induction expiry date", 10)
+        : "";
+      if (inductionCompleted && (!isValidDate(inductionDate) || !isValidDate(expiryDate))) {
+        throw new HttpError(400, "Enter valid induction and expiry dates.");
+      }
+      if (inductionCompleted && expiryDate < inductionDate) {
+        throw new HttpError(400, "Induction expiry date must be on or after the induction date.");
+      }
+      const updatedAt = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO induction_records (
+          contractor_id, crew_name, health_safety_officer, induction_completed,
+          induction_date, expiry_date, facilities_welfare_explained,
+          fire_assembly_point_explained, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(contractor_id, crew_name) DO UPDATE SET
+          health_safety_officer = excluded.health_safety_officer,
+          induction_completed = excluded.induction_completed,
+          induction_date = excluded.induction_date,
+          expiry_date = excluded.expiry_date,
+          facilities_welfare_explained = excluded.facilities_welfare_explained,
+          fire_assembly_point_explained = excluded.fire_assembly_point_explained,
+          updated_at = excluded.updated_at
+      `).run(
+        contractorId, rosterMember.crew_name, healthSafetyOfficer, Number(inductionCompleted),
+        inductionDate, expiryDate, Number(facilitiesWelfareExplained),
+        Number(fireAssemblyPointExplained), updatedAt,
+      );
+      const record = db.prepare(`
+        SELECT
+          contractors.id AS contractor_id,
+          contractors.name AS contractor_name,
+          induction_records.crew_name,
+          induction_records.health_safety_officer,
+          induction_records.induction_completed,
+          induction_records.induction_date,
+          induction_records.expiry_date,
+          induction_records.facilities_welfare_explained,
+          induction_records.fire_assembly_point_explained,
+          induction_records.updated_at
+        FROM induction_records
+        JOIN contractors ON contractors.id = induction_records.contractor_id
+        WHERE induction_records.contractor_id = ? AND induction_records.crew_name = ?
+      `).get(contractorId, rosterMember.crew_name);
+      return res.json(inductionFromRow(record));
     } catch (error) {
       return next(error);
     }

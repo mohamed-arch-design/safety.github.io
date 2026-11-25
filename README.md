@@ -80,4 +80,10 @@ Uploads accept PDF, JPG, and PNG files up to 10 MB, and the server checks the
 file signature before storing them. Downloads and API endpoints require the
 same admin authentication.
 
+The Health & Safety induction register is populated from crew members already
+included in contractor certification submissions. It tracks the conducting
+officer, completion and expiry dates, and facilities/welfare and fire assembly
+point briefings. Induction expiry dates due within 30 days or already expired
+are highlighted in the register.
+
 Run the API tests with `npm test`.
