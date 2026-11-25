@@ -172,8 +172,38 @@ test("requires authentication and persists new contractors", async () => {
   assert.equal(contractor.trade, "Industrial mechanical services");
   assert.equal(contractor.status, "Pending");
 
+  const secondCreated = await fetch(`${fixture.baseUrl}/api/contractors`, {
+    method: "POST",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Jordan Lee",
+      email: "jordan@example.com",
+      site: "Tricel Killarney",
+      trade: "Electrical",
+      project: "Lighting upgrade",
+    }),
+  });
+  assert.equal(secondCreated.status, 201);
+  const secondContractor = await secondCreated.json();
+
+  const duplicateEmail = await fetch(`${fixture.baseUrl}/api/contractors`, {
+    method: "POST",
+    headers: { ...fixture.headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Another Contractor",
+      email: "alex@example.com",
+      site: "Tricel Weston",
+      trade: "Electrical",
+      project: "Wiring upgrade",
+    }),
+  });
+  assert.equal(duplicateEmail.status, 409);
+  assert.deepEqual(await duplicateEmail.json(), {
+    error: "A contractor with that email already exists.",
+  });
+
   const list = await fetch(`${fixture.baseUrl}/api/contractors`, { headers: fixture.headers });
-  assert.deepEqual((await list.json()).map(({ id }) => id), [contractor.id]);
+  assert.deepEqual((await list.json()).map(({ id }) => id), [secondContractor.id, contractor.id]);
 });
 
 test("assigns a finance reviewer and saves an insurance verification decision", async () => {

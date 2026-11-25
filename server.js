@@ -475,7 +475,7 @@ export function createApp({
       `).run(contractor.id, name, email, site, trade, project, contractor.status, contractor.createdAt);
       res.status(201).json(contractor);
     } catch (error) {
-      if (error.code === "ERR_SQLITE_CONSTRAINT_UNIQUE") {
+      if (error.errcode === 2067 && error.message.includes("contractors_email_unique")) {
         return next(new HttpError(409, "A contractor with that email already exists."));
       }
       return next(error);
